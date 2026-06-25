@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  username     String   @unique
+  passwordHash String
+  role         String   // "ADMIN" | "MANAGER"
+  createdAt    DateTime @default(now())
+}
+
+model Machine {
+  id            String            @id @default(cuid())
+  machineNumber Int               @unique
+  typeModel     String
+  status        String            @default("ACTIVE") // "ACTIVE" | "UNDER_REPAIR" | "INACTIVE"
+  createdAt     DateTime          @default(now())
+  entries       ProductionEntry[]
+}
+
+model Worker {
+  id          String            @id @default(cuid())
+  workerId    String            @unique
+  name        String
+  joiningDate String
+  status      String            @default("ACTIVE") // "ACTIVE" | "INACTIVE"
+  createdAt   DateTime          @default(now())
+  entries     ProductionEntry[]
+}
+
+model WageRate {
+  id            String   @id @default(cuid())
+  ratePerYard   Float
+  effectiveFrom String
+  createdAt     DateTime @default(now())
+}
+
+model ProductionEntry {
+  id         String   @id @default(cuid())
+  date       String
+  totalYards Int
+  segments   Int[]
+  
+  workerId   String
+  worker     Worker   @relation(fields: [workerId], references: [id])
+  
+  machineId  String
+  machine    Machine  @relation(fields: [machineId], references: [id])
+
+  createdAt  DateTime @default(now())
+}
