@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Factory,
@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Clock,
   ArrowRight,
+  Loader2,
 } from "lucide-react";
 import {
   BarChart,
@@ -26,19 +27,19 @@ import {
 import StatCard from "@/components/StatCard";
 import StatusBadge from "@/components/StatusBadge";
 import {
-  mockMachines,
-  mockWorkers,
-  mockProductionEntries,
-  mockWageRates,
-  getTodayStr,
-  getEntriesForDate,
-} from "@/lib/mock-data";
-import {
-  calculateMonthlyTotal,
   calculateMonthlyWage,
   formatBDT,
   getMonthName,
 } from "@/lib/wage-calc";
+import { getActiveMachines } from "@/app/actions/machines";
+import { getActiveWorkers } from "@/app/actions/workers";
+import { getWageRates } from "@/app/actions/wageRates";
+import { getEntriesForDate, getEntriesForMonth } from "@/app/actions/production";
+import { getSession } from "next-auth/react";
+
+function getTodayStr() {
+  return new Date().toISOString().split("T")[0];
+}
 
 export default function DashboardPage() {
   const today = getTodayStr();
@@ -46,27 +47,49 @@ export default function DashboardPage() {
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
 
-  const todayEntries = getEntriesForDate(today);
-  const activeMachines = mockMachines.filter((m) => m.status === "ACTIVE");
-  const activeWorkers = mockWorkers.filter((w) => w.status === "ACTIVE");
+  const [activeMachines, setActiveMachines] = useState<any[]>([]);
+  const [activeWorkers, setActiveWorkers] = useState<any[]>([]);
+  const [wageRates, setWageRates] = useState<any[]>([]);
+  const [todayEntries, setTodayEntries] = useState<any[]>([]);
+  const [monthEntries, setMonthEntries] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    async function loadData() {
+      setIsLoading(true);
+      const session = await getSession();
+      if (session?.user) setUser(session.user);
+      const monthStr = `${currentYear}-${String(currentMonth).padStart(2, "0")}`;
+      const [m, w, r, tEntries, mEntries] = await Promise.all([
+        getActiveMachines(),
+        getActiveWorkers(),
+        getWageRates(),
+        getEntriesForDate(today),
+        getEntriesForMonth(monthStr),
+      ]);
+      setActiveMachines(m);
+      setActiveWorkers(w);
+      setWageRates(r);
+      setTodayEntries(tEntries);
+      setMonthEntries(mEntries);
+      setIsLoading(false);
+    }
+    loadData();
+  }, [today, currentMonth, currentYear]);
 
   // Which machines have been logged today
   const loggedMachineIds = new Set(todayEntries.map((e) => e.machineId));
 
   // Monthly totals
-  const monthlyYards = mockProductionEntries
-    .filter((e) => {
-      const d = new Date(e.date);
-      return d.getMonth() + 1 === currentMonth && d.getFullYear() === currentYear;
-    })
-    .reduce((sum, e) => sum + e.totalYards, 0);
+  const monthlyYards = monthEntries.reduce((sum, e) => sum + e.totalYards, 0);
 
   const monthlyWage = activeWorkers.reduce((total, w) => {
     return (
       total +
       calculateMonthlyWage(
-        mockProductionEntries.filter((e) => e.workerId === w.id),
-        mockWageRates,
+        monthEntries.filter((e) => e.workerId === w.id),
+        wageRates,
         currentMonth,
         currentYear
       )
@@ -78,12 +101,20 @@ export default function DashboardPage() {
   const chartData = [];
   for (let day = 1; day <= Math.min(daysInMonth, now.getDate()); day++) {
     const dateStr = `${currentYear}-${String(currentMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    const dayEntries = mockProductionEntries.filter((e) => e.date === dateStr);
+    const dayEntries = monthEntries.filter((e) => e.date === dateStr);
     const totalYards = dayEntries.reduce((sum, e) => sum + e.totalYards, 0);
     chartData.push({ day: `${day}`, yards: totalYards });
   }
 
   const todayTotalYards = todayEntries.reduce((sum, e) => sum + e.totalYards, 0);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="animate-spin text-accent-cyan" size={32} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -91,7 +122,7 @@ export default function DashboardPage() {
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-accent-cyan/10 via-accent-blue/5 to-accent-purple/10 border border-accent-cyan/20 p-6">
         <div className="relative z-10">
           <h1 className="text-2xl font-bold text-text-primary">
-            Good {now.getHours() < 12 ? "Morning" : now.getHours() < 17 ? "Afternoon" : "Evening"}, Rahim
+            Good {now.getHours() < 12 ? "Morning" : now.getHours() < 17 ? "Afternoon" : "Evening"}, {user?.name || "Admin"}
           </h1>
           <p className="text-sm text-text-secondary mt-1">
             Here&apos;s your mill overview for {getMonthName(currentMonth)} {currentYear}
@@ -108,14 +139,12 @@ export default function DashboardPage() {
           value={`${todayTotalYards.toLocaleString()} yds`}
           icon={<Ruler size={20} />}
           variant="cyan"
-          trend={{ value: 5.2, label: "vs yesterday" }}
         />
         <StatCard
           label="Monthly Output"
           value={`${monthlyYards.toLocaleString()} yds`}
           icon={<Factory size={20} />}
           variant="green"
-          trend={{ value: 12, label: "vs last month" }}
         />
         <StatCard
           label="Wage Liability"
@@ -143,7 +172,7 @@ export default function DashboardPage() {
             </span>
           </div>
           <div className="grid grid-cols-3 gap-2">
-            {mockMachines.map((machine) => {
+            {activeMachines.map((machine) => {
               const isLogged = loggedMachineIds.has(machine.id);
               const isRepair = machine.status === "UNDER_REPAIR";
 
@@ -336,9 +365,9 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {mockProductionEntries.slice(-8).reverse().map((entry) => {
-                const machine = mockMachines.find((m) => m.id === entry.machineId);
-                const worker = mockWorkers.find((w) => w.id === entry.workerId);
+              {monthEntries.slice(0, 8).map((entry) => {
+                const machine = entry.machine;
+                const worker = entry.worker;
                 return (
                   <tr
                     key={entry.id}
@@ -355,7 +384,7 @@ export default function DashboardPage() {
                     </td>
                     <td className="py-2.5 px-3 text-text-primary">{worker?.name}</td>
                     <td className="py-2.5 px-3 text-text-muted">
-                      {entry.segments.map((s) => s.yards).join(" + ")}
+                      {entry.segments.join(" + ")}
                     </td>
                     <td className="py-2.5 px-3 text-right font-mono font-semibold text-accent-cyan">
                       {entry.totalYards}

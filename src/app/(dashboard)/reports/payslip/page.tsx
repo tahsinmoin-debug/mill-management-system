@@ -1,13 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Printer, Factory } from "lucide-react";
-import {
-  mockMachines,
-  mockWorkers,
-  mockWageRates,
-  getWorkerMonthEntries,
-} from "@/lib/mock-data";
+import { useState, useMemo, useEffect } from "react";
+import { Printer, Factory, Loader2 } from "lucide-react";
 import {
   calculateMonthlyTotal,
   calculateMonthlyWage,
@@ -16,6 +10,10 @@ import {
   getMonthName,
   getApplicableRate,
 } from "@/lib/wage-calc";
+import { getActiveWorkers } from "@/app/actions/workers";
+import { getWageRates } from "@/app/actions/wageRates";
+import { getEntriesForMonth } from "@/app/actions/production";
+import { getActiveMachines } from "@/app/actions/machines";
 
 export default function PayslipPage() {
   const now = new Date();
@@ -23,14 +21,43 @@ export default function PayslipPage() {
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
 
-  const activeWorkers = mockWorkers.filter((w) => w.status === "ACTIVE");
+  const [activeWorkers, setActiveWorkers] = useState<any[]>([]);
+  const [wageRates, setWageRates] = useState<any[]>([]);
+  const [activeMachines, setActiveMachines] = useState<any[]>([]);
+  const [monthEntries, setMonthEntries] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const worker = mockWorkers.find((w) => w.id === selectedWorker);
+  useEffect(() => {
+    async function loadInitial() {
+      const [w, r, m] = await Promise.all([
+        getActiveWorkers(),
+        getWageRates(),
+        getActiveMachines()
+      ]);
+      setActiveWorkers(w);
+      setWageRates(r);
+      setActiveMachines(m);
+    }
+    loadInitial();
+  }, []);
+
+  useEffect(() => {
+    async function loadEntries() {
+      setIsLoading(true);
+      const monthStr = `${selectedYear}-${String(selectedMonth).padStart(2, "0")}`;
+      const entries = await getEntriesForMonth(monthStr);
+      setMonthEntries(entries);
+      setIsLoading(false);
+    }
+    loadEntries();
+  }, [selectedMonth, selectedYear]);
+
+  const worker = activeWorkers.find((w) => w.id === selectedWorker);
 
   const workerEntries = useMemo(() => {
     if (!selectedWorker) return [];
-    return getWorkerMonthEntries(selectedWorker, selectedMonth, selectedYear);
-  }, [selectedWorker, selectedMonth, selectedYear]);
+    return monthEntries.filter((e) => e.workerId === selectedWorker);
+  }, [selectedWorker, monthEntries]);
 
   const totalYards = useMemo(
     () => calculateMonthlyTotal(workerEntries, selectedMonth, selectedYear),
@@ -39,14 +66,15 @@ export default function PayslipPage() {
 
   const totalWage = useMemo(() => {
     if (!selectedWorker) return 0;
-    return calculateMonthlyWage(workerEntries, mockWageRates, selectedMonth, selectedYear);
-  }, [selectedWorker, workerEntries, selectedMonth, selectedYear]);
+    return calculateMonthlyWage(workerEntries, wageRates, selectedMonth, selectedYear);
+  }, [selectedWorker, workerEntries, wageRates, selectedMonth, selectedYear]);
 
   // Get the primary rate used
   const primaryRate = useMemo(() => {
-    if (workerEntries.length === 0) return mockWageRates[mockWageRates.length - 1];
-    return getApplicableRate(mockWageRates, workerEntries[0].date) || mockWageRates[mockWageRates.length - 1];
-  }, [workerEntries]);
+    if (wageRates.length === 0) return { ratePerYard: 0 };
+    if (workerEntries.length === 0) return wageRates[wageRates.length - 1];
+    return getApplicableRate(wageRates, workerEntries[0].date) || wageRates[wageRates.length - 1];
+  }, [workerEntries, wageRates]);
 
   // Group entries by date for display
   const dailyEntries = useMemo(() => {
@@ -62,12 +90,12 @@ export default function PayslipPage() {
         entries,
         totalYards: entries.reduce((sum, e) => sum + e.totalYards, 0),
         machines: entries.map((e) => {
-          const m = mockMachines.find((m) => m.id === e.machineId);
+          const m = activeMachines.find((m) => m.id === e.machineId);
           return `M${m?.machineNumber || "?"}`;
         }),
-        segments: entries.flatMap((e) => e.segments.map((s) => s.yards)),
+        segments: entries.flatMap((e) => e.segments),
       }));
-  }, [workerEntries]);
+  }, [workerEntries, activeMachines]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -131,7 +159,11 @@ export default function PayslipPage() {
       </div>
 
       {/* Payslip */}
-      {!selectedWorker ? (
+      {isLoading && !selectedWorker ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="animate-spin text-accent-cyan" size={32} />
+        </div>
+      ) : !selectedWorker ? (
         <div className="glass-card p-12 text-center">
           <div className="w-16 h-16 rounded-2xl bg-bg-card border border-border-primary mx-auto mb-4 flex items-center justify-center">
             <Factory size={28} className="text-text-muted" />
@@ -222,22 +254,36 @@ export default function PayslipPage() {
                 </tr>
               </thead>
               <tbody>
-                {dailyEntries.map((day) => (
-                  <tr key={day.date} className="border-b border-border-primary/50 print:border-gray-200">
-                    <td className="py-2 text-text-primary print:text-black">
-                      {formatDate(day.date)}
-                    </td>
-                    <td className="py-2 text-text-secondary print:text-gray-700">
-                      {day.machines.join(", ")}
-                    </td>
-                    <td className="py-2 text-text-muted font-mono text-xs print:text-gray-600">
-                      {day.segments.join(" + ")}
-                    </td>
-                    <td className="py-2 text-right font-mono font-semibold text-accent-cyan print:text-black">
-                      {day.totalYards}
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={4} className="py-4 text-center">
+                      <Loader2 className="animate-spin text-accent-cyan mx-auto" size={20} />
                     </td>
                   </tr>
-                ))}
+                ) : dailyEntries.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-4 text-center text-text-muted">
+                      No production entries for this period.
+                    </td>
+                  </tr>
+                ) : (
+                  dailyEntries.map((day) => (
+                    <tr key={day.date} className="border-b border-border-primary/50 print:border-gray-200">
+                      <td className="py-2 text-text-primary print:text-black">
+                        {formatDate(day.date)}
+                      </td>
+                      <td className="py-2 text-text-secondary print:text-gray-700">
+                        {day.machines.join(", ")}
+                      </td>
+                      <td className="py-2 text-text-muted font-mono text-xs print:text-gray-600">
+                        {day.segments.join(" + ")}
+                      </td>
+                      <td className="py-2 text-right font-mono font-semibold text-accent-cyan print:text-black">
+                        {day.totalYards}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

@@ -239,7 +239,9 @@ export default function ProductionEntryPage() {
                   Live Wage Preview
                 </span>
                 <span className="text-xs text-text-muted">
-                  Rate applied: {applicableRate} BDT/yard
+                  {wageRates.length === 0 
+                    ? "Warning: No wage rate configured. Please add one in Settings." 
+                    : `Rate applied: ${applicableRate} BDT/yard`}
                 </span>
               </div>
               <span className="text-xl font-bold font-mono text-accent-amber">

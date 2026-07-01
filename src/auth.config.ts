@@ -19,8 +19,17 @@ export const authConfig = {
         nextUrl.pathname.startsWith('/settings');
 
       if (isProtected) {
-        if (isLoggedIn) return true;
-        return false; // Redirects to signIn page
+        if (!isLoggedIn) return false; // Redirects to signIn page
+        
+        // Admin-only routes
+        if (nextUrl.pathname.startsWith('/settings')) {
+          const userRole = (auth?.user as any)?.role;
+          if (userRole !== "ADMIN") {
+            return Response.redirect(new URL('/dashboard', nextUrl));
+          }
+        }
+        
+        return true;
       } else if (isLoggedIn && isAuthPage) {
         return Response.redirect(new URL('/dashboard', nextUrl));
       }

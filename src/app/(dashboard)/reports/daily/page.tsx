@@ -1,22 +1,28 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Printer, ChevronDown, ChevronRight, Ruler } from "lucide-react";
-import {
-  mockMachines,
-  mockWorkers,
-  mockProductionEntries,
-  getTodayStr,
-} from "@/lib/mock-data";
+import { useState, useEffect, useMemo } from "react";
+import { Printer, ChevronDown, ChevronRight, Ruler, Loader2 } from "lucide-react";
+import { getEntriesForDate } from "@/app/actions/production";
+
+function getTodayStr() {
+  return new Date().toISOString().split("T")[0];
+}
 
 export default function DailyReportPage() {
   const [selectedDate, setSelectedDate] = useState(getTodayStr());
   const [expandedMachines, setExpandedMachines] = useState<Set<string>>(new Set());
+  const [dayEntries, setDayEntries] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const dayEntries = useMemo(
-    () => mockProductionEntries.filter((e) => e.date === selectedDate),
-    [selectedDate]
-  );
+  useEffect(() => {
+    async function loadEntries() {
+      setIsLoading(true);
+      const data = await getEntriesForDate(selectedDate);
+      setDayEntries(data);
+      setIsLoading(false);
+    }
+    loadEntries();
+  }, [selectedDate]);
 
   const millTotalYards = dayEntries.reduce((sum, e) => sum + e.totalYards, 0);
 
@@ -24,14 +30,12 @@ export default function DailyReportPage() {
   const machineGroups = useMemo(() => {
     const groups: Record<
       string,
-      { machine: (typeof mockMachines)[0]; entries: typeof dayEntries; total: number }
+      { machine: any; entries: typeof dayEntries; total: number }
     > = {};
 
     dayEntries.forEach((entry) => {
       if (!groups[entry.machineId]) {
-        const machine = mockMachines.find((m) => m.id === entry.machineId);
-        if (!machine) return;
-        groups[entry.machineId] = { machine, entries: [], total: 0 };
+        groups[entry.machineId] = { machine: entry.machine, entries: [], total: 0 };
       }
       groups[entry.machineId].entries.push(entry);
       groups[entry.machineId].total += entry.totalYards;
@@ -103,7 +107,11 @@ export default function DailyReportPage() {
           </h3>
         </div>
 
-        {machineGroups.length === 0 ? (
+        {isLoading ? (
+          <div className="py-12 flex justify-center text-accent-cyan">
+            <Loader2 className="animate-spin" size={24} />
+          </div>
+        ) : machineGroups.length === 0 ? (
           <div className="py-12 text-center text-sm text-text-muted">
             No entries found for this date.
           </div>
@@ -163,9 +171,7 @@ export default function DailyReportPage() {
                         </thead>
                         <tbody>
                           {group.entries.map((entry) => {
-                            const worker = mockWorkers.find(
-                              (w) => w.id === entry.workerId
-                            );
+                            const worker = entry.worker;
                             return (
                               <tr
                                 key={entry.id}
@@ -178,7 +184,7 @@ export default function DailyReportPage() {
                                   </span>
                                 </td>
                                 <td className="py-2 px-4 text-text-muted font-mono text-xs">
-                                  {entry.segments.map((s) => s.yards).join(" + ")}
+                                  {entry.segments.join(" + ")}
                                 </td>
                                 <td className="py-2 px-5 text-right font-mono font-semibold text-accent-cyan">
                                   {entry.totalYards}

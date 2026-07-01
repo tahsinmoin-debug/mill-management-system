@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Bell, Search } from "lucide-react";
+import { Search } from "lucide-react";
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -64,11 +64,7 @@ export default function Header() {
           </kbd>
         </div>
 
-        {/* Notifications */}
-        <button className="relative p-2 rounded-lg hover:bg-bg-card text-text-muted hover:text-text-primary transition-colors">
-          <Bell size={18} />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-accent-red rounded-full" />
-        </button>
+
 
         {/* Date Display */}
         <div className="hidden sm:block text-xs text-text-muted bg-bg-card px-3 py-1.5 rounded-lg border border-border-primary">

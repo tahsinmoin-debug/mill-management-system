@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getSession, signOut } from "next-auth/react";
 import {
   LayoutDashboard,
   ClipboardEdit,
@@ -49,6 +50,13 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<string[]>(["Reports", "Settings"]);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    getSession().then((session) => {
+      if (session?.user) setUser(session.user);
+    });
+  }, []);
 
   const toggleGroup = (label: string) => {
     setExpandedGroups((prev) =>
@@ -63,6 +71,8 @@ export default function Sidebar() {
   const renderNav = () => (
     <nav className="flex flex-col gap-1 px-3 py-4">
       {navItems.map((item) => {
+        if (item.adminOnly && user?.role !== "ADMIN") return null;
+
         if (item.children) {
           const isGroupExpanded = expandedGroups.includes(item.label);
           const hasActiveChild = item.children.some((c) => isActive(c.href));
@@ -174,16 +184,21 @@ export default function Sidebar() {
         {/* User Section */}
         <div className="border-t border-border-primary p-4 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-teal to-accent-cyan flex items-center justify-center text-xs font-bold text-white">
-              RU
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-teal to-accent-cyan flex items-center justify-center text-xs font-bold text-white uppercase">
+              {user?.name?.slice(0, 2) || "U"}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-text-primary truncate">
-                Rahim Uddin
+                {user?.name || "User"}
               </p>
-              <p className="text-[10px] text-accent-cyan font-semibold">ADMIN</p>
+              <p className="text-[10px] text-accent-cyan font-semibold uppercase">
+                {user?.role || "USER"}
+              </p>
             </div>
-            <button className="p-1.5 rounded-lg hover:bg-bg-card text-text-muted hover:text-accent-red transition-colors">
+            <button 
+              onClick={() => signOut()}
+              className="p-1.5 rounded-lg hover:bg-bg-card text-text-muted hover:text-accent-red transition-colors"
+            >
               <LogOut size={16} />
             </button>
           </div>
