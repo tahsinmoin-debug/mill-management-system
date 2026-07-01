@@ -175,7 +175,7 @@ export default function WorkersPage() {
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-cyan/20 to-accent-blue/20 flex items-center justify-center text-xs font-bold text-accent-cyan">
                         {worker.name
                           .split(" ")
-                          .map((n) => n[0])
+                          .map((n: string) => n[0])
                           .join("")
                           .slice(0, 2)}
                       </div>
