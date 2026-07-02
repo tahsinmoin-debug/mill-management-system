@@ -8,6 +8,7 @@ import { getActiveMachines } from "@/app/actions/machines";
 import { getActiveWorkers } from "@/app/actions/workers";
 import { getWageRates } from "@/app/actions/wageRates";
 import { getEntriesForDate, createProductionEntry } from "@/app/actions/production";
+import { Skeleton } from "@/components/Skeleton";
 
 function getTodayStr() {
   return new Date().toISOString().split("T")[0];
@@ -110,10 +111,11 @@ export default function ProductionEntryPage() {
     handleSave();
   };
 
-  if (isLoadingData) {
+  if (isLoadingData && activeMachines.length === 0) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="animate-spin text-accent-cyan" size={32} />
+      <div className="space-y-6 animate-fade-in">
+        <Skeleton className="h-[400px] w-full" />
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }

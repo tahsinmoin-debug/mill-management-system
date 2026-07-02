@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Printer, ChevronDown, ChevronRight, Ruler, Loader2 } from "lucide-react";
 import { getEntriesForDate } from "@/app/actions/production";
+import { Skeleton, StatCardSkeleton } from "@/components/Skeleton";
 
 function getTodayStr() {
   return new Date().toISOString().split("T")[0];
@@ -54,6 +55,21 @@ export default function DailyReportPage() {
       return next;
     });
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <Skeleton className="h-16 w-full max-w-sm" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -107,11 +123,7 @@ export default function DailyReportPage() {
           </h3>
         </div>
 
-        {isLoading ? (
-          <div className="py-12 flex justify-center text-accent-cyan">
-            <Loader2 className="animate-spin" size={24} />
-          </div>
-        ) : machineGroups.length === 0 ? (
+        {machineGroups.length === 0 ? (
           <div className="py-12 text-center text-sm text-text-muted">
             No entries found for this date.
           </div>

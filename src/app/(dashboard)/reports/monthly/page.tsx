@@ -22,6 +22,7 @@ import { getActiveWorkers } from "@/app/actions/workers";
 import { getActiveMachines } from "@/app/actions/machines";
 import { getWageRates } from "@/app/actions/wageRates";
 import { getEntriesForMonth } from "@/app/actions/production";
+import { Skeleton, StatCardSkeleton } from "@/components/Skeleton";
 
 export default function MonthlyReportPage() {
   const now = new Date();
@@ -125,8 +126,19 @@ export default function MonthlyReportPage() {
 
   if (isLoading && activeWorkers.length === 0) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="animate-spin text-accent-cyan" size={32} />
+      <div className="space-y-6 animate-fade-in">
+        <Skeleton className="h-16 w-full max-w-sm" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+        <Skeleton className="h-72 w-full" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-96 w-full" />
+          <Skeleton className="h-96 w-full" />
+        </div>
       </div>
     );
   }

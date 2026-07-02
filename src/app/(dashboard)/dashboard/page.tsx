@@ -36,6 +36,7 @@ import { getActiveWorkers } from "@/app/actions/workers";
 import { getWageRates } from "@/app/actions/wageRates";
 import { getEntriesForDate, getEntriesForMonth } from "@/app/actions/production";
 import { getSession } from "next-auth/react";
+import { Skeleton, StatCardSkeleton } from "@/components/Skeleton";
 
 function getTodayStr() {
   return new Date().toISOString().split("T")[0];
@@ -110,8 +111,24 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="animate-spin text-accent-cyan" size={32} />
+      <div className="space-y-6 animate-fade-in">
+        <Skeleton className="h-32 w-full" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Skeleton className="h-64 lg:col-span-1" />
+          <Skeleton className="h-64 lg:col-span-2" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Skeleton className="h-20" />
+          <Skeleton className="h-20" />
+          <Skeleton className="h-20" />
+        </div>
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }

@@ -14,6 +14,7 @@ import { getActiveWorkers } from "@/app/actions/workers";
 import { getWageRates } from "@/app/actions/wageRates";
 import { getEntriesForMonth } from "@/app/actions/production";
 import { getActiveMachines } from "@/app/actions/machines";
+import { Skeleton } from "@/components/Skeleton";
 
 export default function PayslipPage() {
   const now = new Date();
@@ -160,8 +161,8 @@ export default function PayslipPage() {
 
       {/* Payslip */}
       {isLoading && !selectedWorker ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="animate-spin text-accent-cyan" size={32} />
+        <div className="space-y-6 animate-fade-in">
+          <Skeleton className="h-64 w-full" />
         </div>
       ) : !selectedWorker ? (
         <div className="glass-card p-12 text-center">
