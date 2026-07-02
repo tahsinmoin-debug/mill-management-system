@@ -1,195 +1,150 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { signIn } from "next-auth/react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Factory, Eye, EyeOff, Lock, User, ArrowRight } from "lucide-react";
-import { authenticate } from "@/app/actions/auth";
+import { Factory, Lock, User, ArrowRight, Loader2, Globe } from "lucide-react";
+import { useLang, LangProvider } from "@/lib/i18n";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const { t, lang, setLang } = useLang();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
-  const [isPending, startTransition] = useTransition();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     setError("");
 
-    if (!username || !password) {
-      setError("Please enter both username and password.");
-      return;
-    }
-
-    startTransition(async () => {
-      const formData = new FormData();
-      formData.append("username", username);
-      formData.append("password", password);
-      
-      const errorMessage = await authenticate(undefined, formData);
-      if (errorMessage) {
-        setError(errorMessage);
-      } else {
-        router.push("/dashboard");
-      }
+    const result = await signIn("credentials", {
+      username,
+      password,
+      redirect: false,
     });
+
+    if (result?.error) {
+      setError(t("login.error"));
+      setIsLoading(false);
+    } else {
+      router.push("/dashboard");
+    }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
-      {/* Background pattern */}
-      <div className="absolute inset-0 bg-bg-primary">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(6,182,212,0.08),transparent_60%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(59,130,246,0.06),transparent_60%)]" />
-        <div className="absolute top-0 left-0 w-full h-full opacity-[0.03]"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }}
-        />
+    <div className="min-h-screen bg-bg-primary flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      {/* Background decoration */}
+      <div className="absolute top-[-20%] left-[-10%] w-[70vw] h-[70vw] rounded-full bg-accent-cyan/5 blur-3xl pointer-events-none"></div>
+      <div className="absolute bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-accent-blue/5 blur-3xl pointer-events-none"></div>
+
+      {/* Language Toggle (Top Right) */}
+      <div className="absolute top-6 right-6 z-10">
+        <button
+          onClick={() => setLang(lang === "bn" ? "en" : "bn")}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/50 backdrop-blur-md border border-border-primary text-sm font-medium text-text-primary hover:bg-white transition-all shadow-sm"
+        >
+          <Globe size={16} className="text-accent-cyan" />
+          {lang === "bn" ? "English" : "বাংলা"}
+        </button>
       </div>
 
-      {/* Login Card */}
-      <div className="relative z-10 w-full max-w-md mx-4">
-        {/* Logo */}
-        <div className="text-center mb-8 animate-fade-in">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-accent-cyan to-accent-blue shadow-lg shadow-accent-cyan/20 mb-4">
-            <Factory size={32} className="text-white" />
+      <div className="w-full max-w-md relative z-10">
+        {/* Logo & Brand */}
+        <div className="text-center mb-10 animate-fade-in">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-accent-cyan to-accent-blue p-[2px] mb-4 shadow-lg shadow-accent-cyan/20">
+            <div className="w-full h-full rounded-2xl bg-white flex items-center justify-center">
+              <Factory size={32} className="text-accent-cyan" />
+            </div>
           </div>
-          <h1 className="text-3xl font-bold gradient-text mb-1">MillTrack</h1>
-          <p className="text-sm text-text-muted">
-            Production & Wage Management System
+          <h1 className="text-3xl font-bold text-text-primary mb-2 tracking-tight">
+            {t("login.title")}
+          </h1>
+          <p className="text-text-muted text-sm px-4">
+            {t("login.subtitle")}
           </p>
         </div>
 
-        {/* Form Card */}
-        <div className="glass-card p-8 animate-fade-in" style={{ animationDelay: "0.1s" }}>
-          <div className="mb-6">
-            <h2 className="text-xl font-semibold text-text-primary">
-              Welcome back
-            </h2>
-            <p className="text-sm text-text-muted mt-1">
-              Sign in to your account to continue
-            </p>
-          </div>
+        {/* Login Card */}
+        <div className="glass-card p-8 shadow-xl shadow-black/5 animate-slide-in">
+          <h2 className="text-xl font-bold text-text-primary mb-6">
+            {t("login.welcome")}
+          </h2>
 
-          {error && (
-            <div className="mb-4 px-4 py-3 rounded-lg bg-accent-red/10 border border-accent-red/20 text-accent-red text-sm animate-fade-in">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Username */}
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label
-                htmlFor="username"
-                className="block text-xs font-medium text-text-secondary mb-1.5"
-              >
-                Username
+              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
+                {t("login.username")}
               </label>
-              <div className="relative">
-                <User
-                  size={16}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
-                />
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-text-muted group-focus-within:text-accent-cyan transition-colors">
+                  <User size={18} />
+                </div>
                 <input
-                  id="username"
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Enter your username"
-                  className="w-full pl-10 pr-4 py-2.5 bg-bg-input border border-border-primary rounded-lg text-sm text-text-primary placeholder:text-text-muted focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/30 transition-all outline-none"
-                  autoComplete="username"
+                  className="w-full pl-11 pr-4 py-3 bg-bg-input border border-border-primary rounded-xl text-sm text-text-primary focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/30 transition-all outline-none"
+                  placeholder={t("login.username")}
+                  required
                 />
               </div>
             </div>
 
-            {/* Password */}
             <div>
-              <label
-                htmlFor="password"
-                className="block text-xs font-medium text-text-secondary mb-1.5"
-              >
-                Password
+              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
+                {t("login.password")}
               </label>
-              <div className="relative">
-                <Lock
-                  size={16}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
-                />
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-text-muted group-focus-within:text-accent-cyan transition-colors">
+                  <Lock size={18} />
+                </div>
                 <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
+                  type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  className="w-full pl-10 pr-10 py-2.5 bg-bg-input border border-border-primary rounded-lg text-sm text-text-primary placeholder:text-text-muted focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/30 transition-all outline-none"
-                  autoComplete="current-password"
+                  className="w-full pl-11 pr-4 py-3 bg-bg-input border border-border-primary rounded-xl text-sm text-text-primary focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/30 transition-all outline-none"
+                  placeholder="••••••••"
+                  required
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors"
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
               </div>
             </div>
 
-            {/* Remember Me */}
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-3.5 h-3.5 rounded border-border-primary bg-bg-input text-accent-cyan focus:ring-accent-cyan/30"
-                />
-                <span className="text-xs text-text-muted">Remember me</span>
-              </label>
-            </div>
+            {error && (
+              <div className="p-3 rounded-lg bg-accent-red/10 border border-accent-red/20 text-accent-red text-sm font-medium animate-fade-in text-center">
+                {error}
+              </div>
+            )}
 
-            {/* Submit */}
             <button
               type="submit"
-              disabled={isPending}
-              className="w-full flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-accent-cyan to-accent-blue text-white font-medium rounded-lg text-sm
-                hover:shadow-lg hover:shadow-accent-cyan/20 active:scale-[0.98] transition-all duration-200
-                disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:shadow-none"
+              disabled={isLoading || !username || !password}
+              className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-accent-cyan to-accent-blue text-white font-medium rounded-xl hover:shadow-lg hover:shadow-accent-cyan/25 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none mt-2"
             >
-              {isPending ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              {isLoading ? (
+                <Loader2 size={18} className="animate-spin" />
               ) : (
                 <>
-                  Sign In
-                  <ArrowRight size={16} />
+                  {t("login.submit")} <ArrowRight size={18} />
                 </>
               )}
             </button>
           </form>
-
-          {/* Demo credentials hint */}
-          <div className="mt-6 pt-4 border-t border-border-primary">
-            <p className="text-[11px] text-text-muted text-center">
-              Demo credentials:{" "}
-              <code className="px-1.5 py-0.5 bg-bg-secondary rounded text-accent-cyan">
-                admin/admin
-              </code>{" "}
-              or{" "}
-              <code className="px-1.5 py-0.5 bg-bg-secondary rounded text-accent-cyan">
-                manager/manager
-              </code>
-            </p>
-          </div>
         </div>
-
-        {/* Footer */}
-        <p className="text-center text-xs text-text-muted mt-6 animate-fade-in" style={{ animationDelay: "0.2s" }}>
-          © {new Date().getFullYear()} MillTrack. Clothing Mill Production & Wage Management.
+        
+        <p className="text-center text-xs text-text-muted mt-8">
+          &copy; {new Date().getFullYear()} MillTrack. All rights reserved.
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <LangProvider>
+      <LoginForm />
+    </LangProvider>
   );
 }

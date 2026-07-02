@@ -9,18 +9,21 @@ import { getActiveWorkers } from "@/app/actions/workers";
 import { getWageRates } from "@/app/actions/wageRates";
 import { getEntriesForDate, createProductionEntry } from "@/app/actions/production";
 import { Skeleton } from "@/components/Skeleton";
+import { useLang } from "@/lib/i18n";
 
 function getTodayStr() {
   return new Date().toISOString().split("T")[0];
 }
 
 export default function ProductionEntryPage() {
+  const { t } = useLang();
   const [selectedDate, setSelectedDate] = useState(getTodayStr());
   const [selectedMachine, setSelectedMachine] = useState("");
   const [selectedWorker, setSelectedWorker] = useState("");
   const [segments, setSegments] = useState<number[]>([0]);
+  const [tanaCount, setTanaCount] = useState(0);
   const [savedEntries, setSavedEntries] = useState<
-    { machine: string; worker: string; segments: number[]; total: number }[]
+    { machine: string; worker: string; segments: number[]; total: number; tana: number }[]
   >([]);
 
   const [activeMachines, setActiveMachines] = useState<any[]>([]);
@@ -51,7 +54,7 @@ export default function ProductionEntryPage() {
       setExistingEntries(entries);
     }
     loadEntries();
-  }, [selectedDate, savedEntries]); // reload when new entries are saved
+  }, [selectedDate, savedEntries]);
 
   const totalYards = segments.reduce((sum, s) => sum + (s || 0), 0);
 
@@ -85,7 +88,8 @@ export default function ProductionEntryPage() {
         machineId: selectedMachine,
         workerId: selectedWorker,
         segments: segments.filter((s) => s > 0),
-        totalYards: totalYards
+        totalYards: totalYards,
+        tanaCount: tanaCount,
       });
 
       const machineName = activeMachines.find((m) => m.id === selectedMachine)?.machineNumber || "";
@@ -98,17 +102,14 @@ export default function ProductionEntryPage() {
           worker: workerName,
           segments: segments.filter((s) => s > 0),
           total: totalYards,
+          tana: tanaCount,
         },
       ]);
 
-      // Reset form for next worker
       setSelectedWorker("");
       setSegments([0]);
+      setTanaCount(0);
     });
-  };
-
-  const handleSaveAndNext = () => {
-    handleSave();
   };
 
   if (isLoadingData && activeMachines.length === 0) {
@@ -126,7 +127,7 @@ export default function ProductionEntryPage() {
         {/* Entry Form */}
         <div className="lg:col-span-3 glass-card p-6">
           <h3 className="text-lg font-semibold text-text-primary mb-5">
-            New Production Entry
+            {t("entry.title")}
           </h3>
 
           <div className="space-y-5">
@@ -134,26 +135,26 @@ export default function ProductionEntryPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                  Date
+                  {t("entry.date")}
                 </label>
                 <input
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-bg-input border border-border-primary rounded-lg text-sm text-text-primary focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/30 transition-all outline-none"
+                  className="w-full px-4 py-3 bg-bg-input border border-border-primary rounded-xl text-sm text-text-primary focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/30 transition-all outline-none"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                  Machine
+                  {t("entry.machine")}
                 </label>
                 <select
                   value={selectedMachine}
                   onChange={(e) => setSelectedMachine(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-bg-input border border-border-primary rounded-lg text-sm text-text-primary focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/30 transition-all outline-none"
+                  className="w-full px-4 py-3 bg-bg-input border border-border-primary rounded-xl text-sm text-text-primary focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/30 transition-all outline-none"
                 >
-                  <option value="">Select Machine</option>
+                  <option value="">{t("entry.select_machine")}</option>
                   {activeMachines.map((m) => (
                     <option key={m.id} value={m.id}>
                       Machine {m.machineNumber} — {m.typeModel}
@@ -166,14 +167,14 @@ export default function ProductionEntryPage() {
             {/* Worker */}
             <div>
               <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                Worker
+                {t("entry.worker")}
               </label>
               <select
                 value={selectedWorker}
                 onChange={(e) => setSelectedWorker(e.target.value)}
-                className="w-full px-4 py-2.5 bg-bg-input border border-border-primary rounded-lg text-sm text-text-primary focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/30 transition-all outline-none"
+                className="w-full px-4 py-3 bg-bg-input border border-border-primary rounded-xl text-sm text-text-primary focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/30 transition-all outline-none"
               >
-                <option value="">Select Worker</option>
+                <option value="">{t("entry.select_worker")}</option>
                 {activeWorkers.map((w) => (
                   <option key={w.id} value={w.id}>
                     {w.name} ({w.workerId})
@@ -186,14 +187,14 @@ export default function ProductionEntryPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-medium text-text-secondary">
-                  Segment Yards (thread changes)
+                  {t("entry.segments")}
                 </label>
                 <button
                   onClick={addSegment}
                   className="flex items-center gap-1 text-xs text-accent-cyan hover:text-accent-cyan/80 transition-colors"
                 >
                   <Plus size={14} />
-                  Add Segment
+                  {t("entry.add_segment")}
                 </button>
               </div>
               <div className="space-y-2">
@@ -207,8 +208,8 @@ export default function ProductionEntryPage() {
                       min="0"
                       value={seg || ""}
                       onChange={(e) => updateSegment(idx, e.target.value)}
-                      placeholder="Yards"
-                      className="flex-1 px-4 py-3 bg-bg-input border border-border-primary rounded-lg text-base text-text-primary font-mono focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/30 transition-all outline-none"
+                      placeholder={t("entry.yards")}
+                      className="flex-1 px-4 py-3 bg-bg-input border border-border-primary rounded-xl text-base text-text-primary font-mono focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/30 transition-all outline-none"
                       style={{ fontSize: "18px" }}
                     />
                     {segments.length > 1 && (
@@ -224,10 +225,27 @@ export default function ProductionEntryPage() {
               </div>
             </div>
 
+            {/* তানা Section */}
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                {t("entry.tana")}
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={tanaCount || ""}
+                onChange={(e) => setTanaCount(parseInt(e.target.value) || 0)}
+                placeholder={t("entry.tana_hint")}
+                className="w-full px-4 py-3 bg-bg-input border border-border-primary rounded-xl text-base text-text-primary font-mono focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/30 transition-all outline-none"
+                style={{ fontSize: "18px" }}
+              />
+              <p className="text-xs text-text-muted mt-1">{t("entry.tana_hint")}</p>
+            </div>
+
             {/* Total */}
             <div className="flex items-center justify-between p-4 rounded-xl bg-bg-secondary border border-border-primary">
               <span className="text-sm font-medium text-text-secondary">
-                Total Yards
+                {t("entry.total_yards")}
               </span>
               <span className="text-2xl font-bold font-mono gradient-text">
                 {totalYards}
@@ -238,12 +256,12 @@ export default function ProductionEntryPage() {
             <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-accent-amber/5 border border-accent-amber/20">
               <div className="flex flex-col">
                 <span className="text-sm font-medium text-accent-amber">
-                  Live Wage Preview
+                  {t("entry.live_wage")}
                 </span>
                 <span className="text-xs text-text-muted">
-                  {wageRates.length === 0 
-                    ? "Warning: No wage rate configured. Please add one in Settings." 
-                    : `Rate applied: ${applicableRate} BDT/yard`}
+                  {wageRates.length === 0
+                    ? t("entry.no_rate_warning")
+                    : `${t("entry.rate_applied")}: ${applicableRate} ${t("common.bdt_per_yard")}`}
                 </span>
               </div>
               <span className="text-xl font-bold font-mono text-accent-amber">
@@ -254,24 +272,24 @@ export default function ProductionEntryPage() {
             {/* Actions */}
             <div className="flex items-center gap-3 pt-2">
               <button
-                onClick={handleSaveAndNext}
+                onClick={handleSave}
                 disabled={isPending || !selectedMachine || !selectedWorker || totalYards === 0}
-                className="flex-1 flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-accent-cyan to-accent-blue text-white font-medium rounded-lg text-sm
+                className="flex-1 flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-accent-cyan to-accent-blue text-white font-medium rounded-xl text-sm
                   hover:shadow-lg hover:shadow-accent-cyan/20 active:scale-[0.98] transition-all duration-200
                   disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                Save & Add Next Worker
+                {t("entry.save_next")}
                 {!isPending && <ArrowRight size={14} />}
               </button>
               <button
                 onClick={handleSave}
                 disabled={isPending || !selectedMachine || !selectedWorker || totalYards === 0}
-                className="px-6 py-3 bg-bg-card border border-border-primary text-text-primary font-medium rounded-lg text-sm
+                className="px-6 py-3 bg-bg-card border border-border-primary text-text-primary font-medium rounded-xl text-sm
                   hover:bg-bg-card-hover transition-all
                   disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Save Only
+                {t("entry.save_only")}
               </button>
             </div>
           </div>
@@ -280,7 +298,7 @@ export default function ProductionEntryPage() {
         {/* Session Entries */}
         <div className="lg:col-span-2 glass-card p-5">
           <h3 className="text-sm font-semibold text-text-primary mb-4">
-            Entries This Session
+            {t("entry.session_entries")}
           </h3>
 
           {savedEntries.length === 0 ? (
@@ -288,9 +306,9 @@ export default function ProductionEntryPage() {
               <div className="w-12 h-12 rounded-xl bg-bg-card border border-border-primary mx-auto mb-3 flex items-center justify-center">
                 <CheckCircle2 size={24} className="text-text-muted" />
               </div>
-              <p className="text-sm text-text-muted">No entries yet.</p>
+              <p className="text-sm text-text-muted">{t("entry.no_entries")}</p>
               <p className="text-xs text-text-muted mt-1">
-                Fill the form and save to add entries.
+                {t("entry.fill_form")}
               </p>
             </div>
           ) : (
@@ -298,7 +316,7 @@ export default function ProductionEntryPage() {
               {savedEntries.map((entry, idx) => (
                 <div
                   key={idx}
-                  className="p-3 rounded-lg bg-bg-secondary border border-border-primary animate-slide-in"
+                  className="p-3 rounded-xl bg-bg-secondary border border-border-primary animate-slide-in"
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium text-text-primary">
@@ -307,11 +325,11 @@ export default function ProductionEntryPage() {
                     <StatusBadge status="LOGGED" />
                   </div>
                   <div className="flex items-center justify-between text-xs text-text-muted">
-                    <span>{entry.machine}</span>
+                    <span>{entry.machine} · {t("entry.tana")}: {entry.tana}</span>
                     <span>
                       {entry.segments.join(" + ")} ={" "}
                       <span className="font-mono font-semibold text-accent-cyan">
-                        {entry.total} yds
+                        {entry.total} {t("common.yards")}
                       </span>
                     </span>
                   </div>
@@ -320,12 +338,12 @@ export default function ProductionEntryPage() {
 
               <div className="pt-3 border-t border-border-primary flex items-center justify-between">
                 <span className="text-xs text-text-muted">
-                  {savedEntries.length} entries
+                  {savedEntries.length} {t("entry.entries")}
                 </span>
                 <span className="text-sm font-semibold text-text-primary">
-                  Total:{" "}
+                  {t("entry.total")}:{" "}
                   <span className="font-mono text-accent-cyan">
-                    {savedEntries.reduce((s, e) => s + e.total, 0)} yds
+                    {savedEntries.reduce((s, e) => s + e.total, 0)} {t("common.yards")}
                   </span>
                 </span>
               </div>
@@ -337,11 +355,11 @@ export default function ProductionEntryPage() {
       {/* Existing entries for selected date */}
       <div className="glass-card p-5">
         <h3 className="text-sm font-semibold text-text-primary mb-4">
-          Existing Entries for {selectedDate}
+          {t("entry.existing_entries")} — {selectedDate}
         </h3>
         {existingEntries.length === 0 ? (
           <p className="text-sm text-text-muted py-4 text-center">
-            No entries recorded for this date yet.
+            {t("entry.no_existing")}
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -349,16 +367,19 @@ export default function ProductionEntryPage() {
               <thead>
                 <tr className="border-b border-border-primary">
                   <th className="text-left py-2 px-3 text-xs font-medium text-text-muted uppercase tracking-wider">
-                    Machine
+                    {t("entry.machine")}
                   </th>
                   <th className="text-left py-2 px-3 text-xs font-medium text-text-muted uppercase tracking-wider">
-                    Worker
+                    {t("entry.worker")}
                   </th>
                   <th className="text-left py-2 px-3 text-xs font-medium text-text-muted uppercase tracking-wider">
-                    Segments
+                    {t("entry.segments")}
                   </th>
                   <th className="text-right py-2 px-3 text-xs font-medium text-text-muted uppercase tracking-wider">
-                    Total
+                    {t("entry.tana")}
+                  </th>
+                  <th className="text-right py-2 px-3 text-xs font-medium text-text-muted uppercase tracking-wider">
+                    {t("entry.total")}
                   </th>
                 </tr>
               </thead>
@@ -377,6 +398,9 @@ export default function ProductionEntryPage() {
                       </td>
                       <td className="py-2 px-3 text-text-muted font-mono text-xs">
                         {entry.segments.join(" + ")}
+                      </td>
+                      <td className="py-2 px-3 text-right text-text-muted">
+                        {entry.tanaCount || 0}
                       </td>
                       <td className="py-2 px-3 text-right font-mono font-semibold text-accent-cyan">
                         {entry.totalYards}

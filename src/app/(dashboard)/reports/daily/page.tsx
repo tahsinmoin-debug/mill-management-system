@@ -1,15 +1,17 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Printer, ChevronDown, ChevronRight, Ruler, Loader2 } from "lucide-react";
+import { Printer, ChevronDown, ChevronRight, Ruler } from "lucide-react";
 import { getEntriesForDate } from "@/app/actions/production";
 import { Skeleton, StatCardSkeleton } from "@/components/Skeleton";
+import { useLang } from "@/lib/i18n";
 
 function getTodayStr() {
   return new Date().toISOString().split("T")[0];
 }
 
 export default function DailyReportPage() {
+  const { t } = useLang();
   const [selectedDate, setSelectedDate] = useState(getTodayStr());
   const [expandedMachines, setExpandedMachines] = useState<Set<string>>(new Set());
   const [dayEntries, setDayEntries] = useState<any[]>([]);
@@ -26,25 +28,19 @@ export default function DailyReportPage() {
   }, [selectedDate]);
 
   const millTotalYards = dayEntries.reduce((sum, e) => sum + e.totalYards, 0);
+  const millTotalTana = dayEntries.reduce((sum, e) => sum + (e.tanaCount || 0), 0);
 
-  // Group by machine
   const machineGroups = useMemo(() => {
-    const groups: Record<
-      string,
-      { machine: any; entries: typeof dayEntries; total: number }
-    > = {};
-
+    const groups: Record<string, { machine: any; entries: typeof dayEntries; total: number; tana: number }> = {};
     dayEntries.forEach((entry) => {
       if (!groups[entry.machineId]) {
-        groups[entry.machineId] = { machine: entry.machine, entries: [], total: 0 };
+        groups[entry.machineId] = { machine: entry.machine, entries: [], total: 0, tana: 0 };
       }
       groups[entry.machineId].entries.push(entry);
       groups[entry.machineId].total += entry.totalYards;
+      groups[entry.machineId].tana += (entry.tanaCount || 0);
     });
-
-    return Object.values(groups).sort(
-      (a, b) => a.machine.machineNumber - b.machine.machineNumber
-    );
+    return Object.values(groups).sort((a, b) => a.machine.machineNumber - b.machine.machineNumber);
   }, [dayEntries]);
 
   const toggleMachine = (id: string) => {
@@ -60,12 +56,7 @@ export default function DailyReportPage() {
     return (
       <div className="space-y-6 animate-fade-in">
         <Skeleton className="h-16 w-full max-w-sm" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCardSkeleton />
-          <StatCardSkeleton />
-          <StatCardSkeleton />
-          <StatCardSkeleton />
-        </div>
+        <Skeleton className="h-24 w-full" />
         <Skeleton className="h-96 w-full" />
       </div>
     );
@@ -73,43 +64,45 @@ export default function DailyReportPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header Controls */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <label className="text-sm text-text-secondary">Date:</label>
+          <label className="text-sm text-text-secondary">{t("daily.date")}:</label>
           <input
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-4 py-2 bg-bg-card border border-border-primary rounded-lg text-sm text-text-primary focus:border-accent-cyan outline-none"
+            className="px-4 py-2 bg-bg-card border border-border-primary rounded-xl text-sm text-text-primary focus:border-accent-cyan outline-none"
           />
         </div>
         <button
           onClick={() => window.print()}
-          className="no-print flex items-center gap-2 px-4 py-2 bg-bg-card border border-border-primary text-text-primary text-sm rounded-lg hover:bg-bg-card-hover transition-all"
+          className="no-print flex items-center gap-2 px-4 py-2 bg-bg-card border border-border-primary text-text-primary text-sm rounded-xl hover:bg-bg-card-hover transition-all"
         >
           <Printer size={16} />
-          Print Report
+          {t("daily.print")}
         </button>
       </div>
 
-      {/* Summary Card */}
+      {/* Summary */}
       <div className="glass-card p-5">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-accent-cyan/15 text-accent-cyan flex items-center justify-center">
             <Ruler size={24} />
           </div>
-          <div>
+          <div className="flex-1">
             <p className="text-xs text-text-muted uppercase tracking-wider">
-              Mill-Wide Total for {selectedDate}
+              {t("daily.mill_total")} — {selectedDate}
             </p>
             <p className="text-3xl font-bold gradient-text">
-              {millTotalYards.toLocaleString()} yards
+              {millTotalYards.toLocaleString()} {t("common.yards")}
             </p>
           </div>
-          <div className="ml-auto text-right hidden sm:block">
+          <div className="text-right hidden sm:block">
             <p className="text-sm text-text-muted">
-              {machineGroups.length} machines · {dayEntries.length} entries
+              {machineGroups.length} {t("daily.machines_entries").split("·")[0]}· {dayEntries.length} {t("daily.machines_entries").split("·")[1]}
+            </p>
+            <p className="text-sm text-text-muted">
+              {t("daily.tana")}: <span className="font-semibold text-text-primary">{millTotalTana}</span>
             </p>
           </div>
         </div>
@@ -119,13 +112,13 @@ export default function DailyReportPage() {
       <div className="glass-card overflow-hidden">
         <div className="px-5 py-3 border-b border-border-primary bg-bg-secondary/50">
           <h3 className="text-sm font-semibold text-text-primary">
-            Per-Machine Breakdown
+            {t("daily.breakdown")}
           </h3>
         </div>
 
         {machineGroups.length === 0 ? (
           <div className="py-12 text-center text-sm text-text-muted">
-            No entries found for this date.
+            {t("daily.no_entries")}
           </div>
         ) : (
           <div className="divide-y divide-border-primary/50">
@@ -133,7 +126,6 @@ export default function DailyReportPage() {
               const isExpanded = expandedMachines.has(group.machine.id);
               return (
                 <div key={group.machine.id}>
-                  {/* Machine Row */}
                   <button
                     onClick={() => toggleMachine(group.machine.id)}
                     className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-bg-card-hover/50 transition-colors"
@@ -157,53 +149,53 @@ export default function DailyReportPage() {
                       </span>
                     </div>
                     <span className="text-xs text-text-muted">
-                      {group.entries.length} worker{group.entries.length !== 1 ? "s" : ""}
+                      {group.entries.length} {t("daily.workers_count")}
                     </span>
-                    <span className="font-mono font-semibold text-accent-cyan text-sm ml-4">
-                      {group.total} yds
+                    <span className="text-xs text-text-muted mx-2">
+                      {t("daily.tana")}: {group.tana}
+                    </span>
+                    <span className="font-mono font-semibold text-accent-cyan text-sm ml-2">
+                      {group.total} {t("common.yards")}
                     </span>
                   </button>
 
-                  {/* Worker Detail */}
                   {isExpanded && (
                     <div className="bg-bg-secondary/30 border-t border-border-primary/30">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-border-primary/30">
                             <th className="text-left py-2 px-8 text-xs font-medium text-text-muted">
-                              Worker
+                              {t("daily.worker")}
                             </th>
                             <th className="text-left py-2 px-4 text-xs font-medium text-text-muted">
-                              Segments
+                              {t("daily.segments")}
+                            </th>
+                            <th className="text-right py-2 px-4 text-xs font-medium text-text-muted">
+                              {t("daily.tana")}
                             </th>
                             <th className="text-right py-2 px-5 text-xs font-medium text-text-muted">
-                              Total
+                              {t("daily.total")}
                             </th>
                           </tr>
                         </thead>
                         <tbody>
-                          {group.entries.map((entry) => {
-                            const worker = entry.worker;
-                            return (
-                              <tr
-                                key={entry.id}
-                                className="border-b border-border-primary/20 animate-slide-in"
-                              >
-                                <td className="py-2 px-8 text-text-primary">
-                                  {worker?.name}{" "}
-                                  <span className="text-xs text-text-muted">
-                                    ({worker?.workerId})
-                                  </span>
-                                </td>
-                                <td className="py-2 px-4 text-text-muted font-mono text-xs">
-                                  {entry.segments.join(" + ")}
-                                </td>
-                                <td className="py-2 px-5 text-right font-mono font-semibold text-accent-cyan">
-                                  {entry.totalYards}
-                                </td>
-                              </tr>
-                            );
-                          })}
+                          {group.entries.map((entry) => (
+                            <tr key={entry.id} className="border-b border-border-primary/20 animate-slide-in">
+                              <td className="py-2 px-8 text-text-primary">
+                                {entry.worker?.name}{" "}
+                                <span className="text-xs text-text-muted">({entry.worker?.workerId})</span>
+                              </td>
+                              <td className="py-2 px-4 text-text-muted font-mono text-xs">
+                                {entry.segments.join(" + ")}
+                              </td>
+                              <td className="py-2 px-4 text-right text-text-muted">
+                                {entry.tanaCount || 0}
+                              </td>
+                              <td className="py-2 px-5 text-right font-mono font-semibold text-accent-cyan">
+                                {entry.totalYards}
+                              </td>
+                            </tr>
+                          ))}
                         </tbody>
                       </table>
                     </div>
@@ -214,14 +206,13 @@ export default function DailyReportPage() {
           </div>
         )}
 
-        {/* Footer Total */}
         {machineGroups.length > 0 && (
           <div className="flex items-center justify-between px-5 py-3 bg-bg-secondary/50 border-t border-border-primary">
             <span className="text-sm font-medium text-text-secondary">
-              Grand Total
+              {t("daily.grand_total")}
             </span>
             <span className="text-lg font-bold font-mono gradient-text">
-              {millTotalYards.toLocaleString()} yards
+              {millTotalYards.toLocaleString()} {t("common.yards")}
             </span>
           </div>
         )}

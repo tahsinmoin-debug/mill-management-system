@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
-import { Plus, Edit2, ShieldAlert, Trash2, Loader2 } from "lucide-react";
+import { Plus, UserCog, ShieldCheck, Loader2 } from "lucide-react";
 import Modal from "@/components/Modal";
-import StatusBadge from "@/components/StatusBadge";
 import { formatDate } from "@/lib/wage-calc";
-import { getUsers, createUser, deleteUser } from "@/app/actions/users";
+import { getUsers, createUser } from "@/app/actions/users";
+import { Skeleton } from "@/components/Skeleton";
+import { useLang } from "@/lib/i18n";
 
 export default function UsersPage() {
+  const { t } = useLang();
   const [showAddModal, setShowAddModal] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -16,7 +18,7 @@ export default function UsersPage() {
   const [newName, setNewName] = useState("");
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [newRole, setNewRole] = useState("MANAGER");
+  const [newRole, setNewRole] = useState("USER");
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -30,47 +32,51 @@ export default function UsersPage() {
   }, []);
 
   const handleAddUser = () => {
-    if (!newName || !newUsername || !newPassword || !newRole) return;
+    if (!newName || !newUsername || !newPassword) return;
     startTransition(async () => {
       await createUser({
         name: newName,
         username: newUsername,
-        passwordHash: newPassword, // Action will hash it
+        passwordHash: newPassword,
         role: newRole,
       });
       setShowAddModal(false);
       setNewName("");
       setNewUsername("");
       setNewPassword("");
-      setNewRole("MANAGER");
+      setNewRole("USER");
       fetchUsers();
     });
   };
 
-  const handleDeleteUser = (id: string) => {
-    if (confirm("Are you sure you want to delete this user?")) {
-      startTransition(async () => {
-        await deleteUser(id);
-        fetchUsers();
-      });
-    }
-  };
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in max-w-5xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold text-text-primary">System Users</h2>
-          <p className="text-sm text-text-muted mt-1">
-            Manage admin and manager accounts
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-accent-purple/15 text-accent-purple flex items-center justify-center border border-accent-purple/30">
+            <UserCog size={20} />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-text-primary">{t("users.title")}</h2>
+            <p className="text-xs text-text-muted">
+              {users.length} {t("users.title")}
+            </p>
+          </div>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-accent-cyan to-accent-blue text-white text-sm font-medium rounded-lg hover:shadow-lg hover:shadow-accent-cyan/20 transition-all"
+          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-accent-purple to-accent-blue text-white text-sm font-medium rounded-xl hover:shadow-lg hover:shadow-accent-purple/20 transition-all shrink-0"
         >
           <Plus size={16} />
-          Add User
+          {t("users.add")}
         </button>
       </div>
 
@@ -80,19 +86,16 @@ export default function UsersPage() {
             <thead>
               <tr className="border-b border-border-primary bg-bg-secondary/50">
                 <th className="text-left py-3 px-5 text-xs font-medium text-text-muted uppercase tracking-wider">
-                  User
+                  {t("users.name")}
                 </th>
                 <th className="text-left py-3 px-5 text-xs font-medium text-text-muted uppercase tracking-wider">
-                  Username
+                  {t("users.username")}
                 </th>
                 <th className="text-left py-3 px-5 text-xs font-medium text-text-muted uppercase tracking-wider">
-                  Role
+                  {t("users.role")}
                 </th>
                 <th className="text-left py-3 px-5 text-xs font-medium text-text-muted uppercase tracking-wider">
-                  Created
-                </th>
-                <th className="text-right py-3 px-5 text-xs font-medium text-text-muted uppercase tracking-wider">
-                  Actions
+                  {t("users.created")}
                 </th>
               </tr>
             </thead>
@@ -104,44 +107,27 @@ export default function UsersPage() {
                 >
                   <td className="py-3 px-5">
                     <div className="flex items-center gap-3">
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ${
-                          user.role === "ADMIN"
-                            ? "bg-gradient-to-br from-accent-purple to-accent-blue"
-                            : "bg-gradient-to-br from-accent-cyan to-accent-teal"
-                        }`}
-                      >
-                        {user.name
-                          .split(" ")
-                          .map((n: string) => n[0])
-                          .join("")
-                          .slice(0, 2)}
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-purple/20 to-accent-blue/20 flex items-center justify-center text-xs font-bold text-accent-purple uppercase">
+                        {user.name.slice(0, 2)}
                       </div>
-                      <span className="font-medium text-text-primary">
-                        {user.name}
-                      </span>
+                      <span className="font-medium text-text-primary">{user.name}</span>
                     </div>
                   </td>
+                  <td className="py-3 px-5 text-text-secondary">{user.username}</td>
                   <td className="py-3 px-5">
-                    <span className="font-mono text-xs text-text-secondary">
-                      {user.username}
-                    </span>
+                    {user.role === "ADMIN" ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold rounded-full bg-accent-purple/15 text-accent-purple border border-accent-purple/30">
+                        <ShieldCheck size={12} />
+                        ADMIN
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 text-[10px] font-semibold rounded-full bg-bg-secondary text-text-muted border border-border-primary">
+                        USER
+                      </span>
+                    )}
                   </td>
-                  <td className="py-3 px-5">
-                    <StatusBadge status={user.role} />
-                  </td>
-                  <td className="py-3 px-5 text-text-secondary">
-                    {formatDate(user.createdAt)}
-                  </td>
-                  <td className="py-3 px-5 text-right">
-                    <button 
-                      onClick={() => handleDeleteUser(user.id)}
-                      disabled={isPending || user.username === "Toma"} // Protect main admin
-                      title="Delete User"
-                      className="p-1.5 rounded-lg hover:bg-accent-red/10 text-text-muted hover:text-accent-red transition-colors disabled:opacity-50"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                  <td className="py-3 px-5 text-text-muted text-xs">
+                    {formatDate(user.createdAt.toString())}
                   </td>
                 </tr>
               ))}
@@ -150,76 +136,55 @@ export default function UsersPage() {
         </div>
       </div>
 
-      <div className="flex items-start gap-3 p-4 rounded-xl bg-bg-card border border-border-primary">
-        <ShieldAlert size={18} className="text-text-muted shrink-0 mt-0.5" />
-        <div>
-          <p className="text-sm font-medium text-text-primary">Role Permissions</p>
-          <ul className="mt-2 space-y-1 text-xs text-text-muted list-disc list-inside">
-            <li>
-              <strong className="text-accent-purple">ADMIN:</strong> Full access to all
-              features, including wage rate settings and user management.
-            </li>
-            <li>
-              <strong className="text-accent-blue">MANAGER:</strong> Can enter daily
-              production data, manage machines/workers, and view reports. Cannot
-              access settings.
-            </li>
-          </ul>
-        </div>
-      </div>
-
       <Modal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        title="Add New User"
+        title={t("users.add_title")}
       >
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-text-secondary mb-1.5">
-              Full Name
+              {t("users.full_name")}
             </label>
             <input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="e.g. Jamal Hossain"
-              className="w-full px-4 py-2.5 bg-bg-input border border-border-primary rounded-lg text-sm text-text-primary focus:border-accent-cyan outline-none"
+              className="w-full px-4 py-2.5 bg-bg-input border border-border-primary rounded-xl text-sm text-text-primary focus:border-accent-cyan outline-none"
             />
           </div>
           <div>
             <label className="block text-xs font-medium text-text-secondary mb-1.5">
-              Username
+              {t("users.username")}
             </label>
             <input
               type="text"
               value={newUsername}
               onChange={(e) => setNewUsername(e.target.value)}
-              placeholder="e.g. jamal.h"
-              className="w-full px-4 py-2.5 bg-bg-input border border-border-primary rounded-lg text-sm text-text-primary focus:border-accent-cyan outline-none"
+              className="w-full px-4 py-2.5 bg-bg-input border border-border-primary rounded-xl text-sm text-text-primary focus:border-accent-cyan outline-none"
             />
           </div>
           <div>
             <label className="block text-xs font-medium text-text-secondary mb-1.5">
-              Password
+              {t("users.password")}
             </label>
             <input
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Minimum 8 characters"
-              className="w-full px-4 py-2.5 bg-bg-input border border-border-primary rounded-lg text-sm text-text-primary focus:border-accent-cyan outline-none"
+              className="w-full px-4 py-2.5 bg-bg-input border border-border-primary rounded-xl text-sm text-text-primary focus:border-accent-cyan outline-none"
             />
           </div>
           <div>
             <label className="block text-xs font-medium text-text-secondary mb-1.5">
-              Role
+              {t("users.role")}
             </label>
-            <select 
+            <select
               value={newRole}
               onChange={(e) => setNewRole(e.target.value)}
-              className="w-full px-4 py-2.5 bg-bg-input border border-border-primary rounded-lg text-sm text-text-primary focus:border-accent-cyan outline-none"
+              className="w-full px-4 py-2.5 bg-bg-input border border-border-primary rounded-xl text-sm text-text-primary focus:border-accent-cyan outline-none"
             >
-              <option value="MANAGER">Manager</option>
+              <option value="USER">User</option>
               <option value="ADMIN">Admin</option>
             </select>
           </div>
@@ -227,16 +192,16 @@ export default function UsersPage() {
             <button
               onClick={handleAddUser}
               disabled={isPending || !newName || !newUsername || !newPassword}
-              className="flex-1 flex justify-center items-center py-2.5 bg-gradient-to-r from-accent-cyan to-accent-blue text-white font-medium rounded-lg text-sm hover:shadow-lg transition-all disabled:opacity-50"
+              className="flex-1 flex justify-center items-center py-2.5 bg-gradient-to-r from-accent-purple to-accent-blue text-white font-medium rounded-xl text-sm hover:shadow-lg transition-all disabled:opacity-50"
             >
-              {isPending ? <Loader2 size={16} className="animate-spin" /> : "Add User"}
+              {isPending ? <Loader2 size={16} className="animate-spin" /> : t("users.add")}
             </button>
             <button
               onClick={() => setShowAddModal(false)}
               disabled={isPending}
-              className="px-6 py-2.5 bg-bg-secondary border border-border-primary text-text-primary rounded-lg text-sm hover:bg-bg-card-hover transition-all"
+              className="px-6 py-2.5 bg-bg-secondary border border-border-primary text-text-primary rounded-xl text-sm hover:bg-bg-card-hover transition-all"
             >
-              Cancel
+              {t("users.cancel")}
             </button>
           </div>
         </div>

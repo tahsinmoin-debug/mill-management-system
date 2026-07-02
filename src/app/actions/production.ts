@@ -17,8 +17,18 @@ export async function createProductionEntry(data: {
   machineId: string;
   segments: number[];
   totalYards: number;
+  tanaCount?: number;
 }) {
-  await prisma.productionEntry.create({ data });
+  await prisma.productionEntry.create({
+    data: {
+      date: data.date,
+      workerId: data.workerId,
+      machineId: data.machineId,
+      segments: data.segments,
+      totalYards: data.totalYards,
+      tanaCount: data.tanaCount || 0,
+    }
+  });
   revalidatePath('/entry');
   revalidatePath('/dashboard');
   revalidatePath('/reports/daily');
@@ -30,6 +40,17 @@ export async function getEntriesForMonth(monthStr: string) {
     where: {
       date: {
         startsWith: monthStr
+      }
+    },
+    include: { machine: true, worker: true }
+  });
+}
+
+export async function getEntriesForYear(year: string) {
+  return prisma.productionEntry.findMany({
+    where: {
+      date: {
+        startsWith: year
       }
     },
     include: { machine: true, worker: true }

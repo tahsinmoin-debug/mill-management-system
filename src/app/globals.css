@@ -1,43 +1,45 @@
 @import "tailwindcss";
 
 @theme {
-  /* === Color Palette — Industrial Dark Theme === */
-  --color-bg-primary: #0a0f1e;
-  --color-bg-secondary: #111827;
-  --color-bg-card: #1a2235;
-  --color-bg-card-hover: #1f2a40;
-  --color-bg-input: #0f1629;
-  --color-bg-sidebar: #0d1322;
+  /* === Color Palette — Greyish Peach Theme === */
+  --color-bg-primary: #efe9e5; /* greyish-peach mixture */
+  --color-bg-secondary: #e6ded9; 
+  --color-bg-card: #fdfcfb;
+  --color-bg-card-hover: #f9f6f4;
+  --color-bg-input: #f4efeb;
+  --color-bg-sidebar: #fefdfc;
 
-  --color-border-primary: #1e293b;
-  --color-border-accent: #0ea5e9;
+  --color-border-primary: #d6cfca;
+  --color-border-accent: #b4857b;
 
-  --color-text-primary: #f1f5f9;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted: #64748b;
+  --color-text-primary: #2d2a29;
+  --color-text-secondary: #56504e;
+  --color-text-muted: #8c837f;
 
-  --color-accent-cyan: #06b6d4;
-  --color-accent-teal: #14b8a6;
-  --color-accent-blue: #3b82f6;
-  --color-accent-amber: #f59e0b;
-  --color-accent-orange: #f97316;
-  --color-accent-green: #22c55e;
-  --color-accent-red: #ef4444;
-  --color-accent-purple: #a855f7;
+  --color-accent-cyan: #4a919e;
+  --color-accent-teal: #3b828e;
+  --color-accent-blue: #4a6c9e;
+  --color-accent-amber: #c48b59;
+  --color-accent-orange: #d17855;
+  --color-accent-green: #5a9e6d;
+  --color-accent-red: #c95c5c;
+  --color-accent-purple: #86679e;
 
   /* Gradients */
-  --color-gradient-start: #06b6d4;
-  --color-gradient-end: #3b82f6;
+  --color-gradient-start: #b4857b;
+  --color-gradient-end: #4a6c9e;
 }
 
 /* === Base Styles === */
 html {
   scroll-behavior: smooth;
+  color-scheme: light; /* Force light scheme to prevent OS dark mode injection */
 }
 
+/* Ensure background is strictly applied with !important in case Tailwind dark mode base styles interfere */
 body {
-  background-color: var(--color-bg-primary);
-  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary) !important;
+  color: var(--color-text-primary) !important;
   font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
 }
 
@@ -62,7 +64,7 @@ body {
 
 /* === Selection === */
 ::selection {
-  background-color: rgba(6, 182, 212, 0.3);
+  background-color: rgba(180, 133, 123, 0.2);
   color: var(--color-text-primary);
 }
 
@@ -110,8 +112,8 @@ body {
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.4); }
-  50% { box-shadow: 0 0 16px 4px rgba(6, 182, 212, 0.15); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(180, 133, 123, 0.3); }
+  50% { box-shadow: 0 0 16px 4px rgba(180, 133, 123, 0.1); }
 }
 
 @keyframes shimmer {
@@ -133,10 +135,11 @@ body {
 
 /* === Glass Card Effect === */
 .glass-card {
-  background: rgba(26, 34, 53, 0.7);
+  background: rgba(253, 252, 251, 0.85);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(30, 41, 59, 0.5);
-  border-radius: 12px;
+  border: 1px solid rgba(214, 207, 202, 0.6);
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 /* === Gradient Text === */

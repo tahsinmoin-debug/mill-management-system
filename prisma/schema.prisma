@@ -46,6 +46,7 @@ model ProductionEntry {
   date       String
   totalYards Int
   segments   Int[]
+  tanaCount  Int      @default(0)
   
   workerId   String
   worker     Worker   @relation(fields: [workerId], references: [id])
