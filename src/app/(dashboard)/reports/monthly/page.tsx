@@ -119,7 +119,13 @@ export default function MonthlyReportPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Print-only Header */}
+      <div className="print-only text-center mb-8 border-b-2 border-black/10 pb-4">
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{t("nav.reports.monthly")}</h1>
+        <p className="text-gray-500 mt-1">{monthName(selectedMonth)} {selectedYear}</p>
+      </div>
+
+      <div className="no-print grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label={t("monthly.total_output")} value={`${millTotalYards.toLocaleString()} ${t("common.yards")}`} icon={<Ruler size={20} />} variant="cyan" />
         <StatCard label={t("monthly.total_wage")} value={formatBDT(millTotalWage)} icon={<DollarSign size={20} />} variant="amber" />
         <StatCard label={t("monthly.active_machines")} value={activeMachines.length} icon={<Factory size={20} />} variant="green" />
@@ -127,7 +133,7 @@ export default function MonthlyReportPage() {
       </div>
 
       {/* Chart */}
-      <div className="glass-card p-5">
+      <div className="no-print glass-card p-5">
         <h3 className="text-sm font-semibold text-text-primary mb-4">
           {t("monthly.daily_trend")} — {monthName(selectedMonth)} {selectedYear}
         </h3>

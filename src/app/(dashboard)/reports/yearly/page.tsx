@@ -106,8 +106,14 @@ export default function YearlyReportPage() {
         </button>
       </div>
 
+      {/* Print-only Header */}
+      <div className="print-only text-center mb-8 border-b-2 border-black/10 pb-4">
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{t("nav.reports.yearly")}</h1>
+        <p className="text-gray-500 mt-1">{selectedYear}</p>
+      </div>
+
       {/* Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="no-print grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label={t("yearly.total_output")} value={`${yearTotalYards.toLocaleString()} ${t("common.yards")}`} icon={<Ruler size={20} />} variant="cyan" />
         <StatCard label={t("yearly.total_wage")} value={formatBDT(yearTotalWage)} icon={<DollarSign size={20} />} variant="amber" />
         <StatCard label={t("yearly.total_tana")} value={yearTotalTana.toLocaleString()} icon={<Ruler size={20} />} variant="green" />
@@ -115,7 +121,7 @@ export default function YearlyReportPage() {
       </div>
 
       {/* Monthly Chart */}
-      <div className="glass-card p-5">
+      <div className="no-print glass-card p-5">
         <h3 className="text-sm font-semibold text-text-primary mb-4">
           {t("yearly.chart_title")} — {selectedYear}
         </h3>
