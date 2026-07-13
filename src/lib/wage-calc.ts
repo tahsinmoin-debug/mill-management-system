@@ -6,10 +6,10 @@
 import type { ProductionEntry, ProductionSegment, WageRate } from "./types";
 
 /**
- * Sum segment yards for a single entry.
+ * Sum segment yards for a single entry (7 days).
  */
-export function calculateEntryTotal(segments: ProductionSegment[]): number {
-  return segments.reduce((sum, seg) => sum + seg.yards, 0);
+export function calculateEntryTotal(segments: number[]): number {
+  return segments.reduce((sum, val) => sum + (val || 0), 0);
 }
 
 /**
@@ -37,22 +37,19 @@ export function calculateMonthlyTotal(
 }
 
 /**
- * Find the applicable wage rate for a given date.
- * Rates are date-stamped; we pick the most recent rate whose
- * effectiveFrom <= the entry date.
+ * Find the applicable wage rate.
+ * The client requested the rate to apply to the whole calculation,
+ * so we simply pick the most recent rate.
  */
 export function getApplicableRate(
   rates: WageRate[],
-  date: string
+  date?: string
 ): WageRate | null {
-  const targetDate = new Date(date);
-  const sorted = [...rates]
-    .filter((r) => new Date(r.effectiveFrom) <= targetDate)
-    .sort(
-      (a, b) =>
-        new Date(b.effectiveFrom).getTime() -
-        new Date(a.effectiveFrom).getTime()
-    );
+  const sorted = [...rates].sort(
+    (a, b) =>
+      new Date(b.createdAt || b.effectiveFrom).getTime() -
+      new Date(a.createdAt || a.effectiveFrom).getTime()
+  );
   return sorted[0] || null;
 }
 

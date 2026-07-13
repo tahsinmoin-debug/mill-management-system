@@ -197,14 +197,13 @@ export default function PayslipPage() {
                   <th className="py-2.5 px-3 text-left font-bold text-gray-700">{t("payslip.date")}</th>
                   <th className="py-2.5 px-3 text-left font-bold text-gray-700">{t("payslip.machine")}</th>
                   <th className="py-2.5 px-3 text-left font-bold text-gray-700">{t("payslip.segments")}</th>
-                  <th className="py-2.5 px-3 text-right font-bold text-gray-700">{t("payslip.tana")}</th>
                   <th className="py-2.5 px-3 text-right font-bold text-gray-700">{t("payslip.yards")}</th>
                 </tr>
               </thead>
               <tbody>
                 {workerEntries.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-gray-500 italic">
+                    <td colSpan={4} className="py-8 text-center text-gray-500 italic">
                       {t("payslip.no_entries")}
                     </td>
                   </tr>
@@ -218,9 +217,8 @@ export default function PayslipPage() {
                           M{m?.machineNumber} <span className="text-xs text-gray-500">({m?.typeModel})</span>
                         </td>
                         <td className="py-2 px-3 text-gray-600 font-mono text-xs">
-                          {entry.segments.join(" + ")}
+                          [{entry.segments.map((s: number) => s || 0).join(", ")}]
                         </td>
-                        <td className="py-2 px-3 text-right text-gray-800">{entry.tanaCount || 0}</td>
                         <td className="py-2 px-3 text-right font-mono font-medium text-gray-900">
                           {entry.totalYards}
                         </td>
@@ -242,10 +240,6 @@ export default function PayslipPage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">{t("payslip.days_worked")}</span>
                   <span className="font-medium text-gray-900">{daysWorked}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">{t("payslip.total_tana")}</span>
-                  <span className="font-medium text-gray-900">{totalTana}</span>
                 </div>
                 <div className="flex justify-between text-sm border-b border-gray-200 pb-2">
                   <span className="text-gray-600">{t("payslip.total_yards")}</span>

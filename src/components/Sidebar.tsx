@@ -47,7 +47,7 @@ export default function Sidebar() {
       label: t("nav.reports"),
       icon: FileBarChart,
       children: [
-        { label: t("nav.reports.daily"), href: "/reports/daily", icon: FileText },
+        { label: t("nav.reports.weekly"), href: "/reports/weekly", icon: FileText },
         { label: t("nav.reports.monthly"), href: "/reports/monthly", icon: FileBarChart },
         { label: t("nav.reports.yearly"), href: "/reports/yearly", icon: Calendar },
         { label: t("nav.reports.payslip"), href: "/reports/payslip", icon: Receipt },

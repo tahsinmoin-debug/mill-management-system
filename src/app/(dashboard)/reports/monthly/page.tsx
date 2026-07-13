@@ -26,6 +26,7 @@ export default function MonthlyReportPage() {
   const [activeMachines, setActiveMachines] = useState<any[]>([]);
   const [wageRates, setWageRates] = useState<any[]>([]);
   const [monthEntries, setMonthEntries] = useState<any[]>([]);
+  const [machineTanas, setMachineTanas] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -38,17 +39,29 @@ export default function MonthlyReportPage() {
 
   useEffect(() => {
     async function loadEntries() {
+      if (activeMachines.length === 0) return;
       setIsLoading(true);
       const monthStr = `${selectedYear}-${String(selectedMonth).padStart(2, "0")}`;
+      
+      // We need getMonthlyMachineTana from actions
+      const { getMonthlyMachineTana } = await import("@/app/actions/production");
+      
       const entries = await getEntriesForMonth(monthStr);
+      
+      const tanas: Record<string, number> = {};
+      await Promise.all(activeMachines.map(async (m) => {
+        tanas[m.id] = await getMonthlyMachineTana(m.id, selectedMonth, selectedYear);
+      }));
+
+      setMachineTanas(tanas);
       setMonthEntries(entries);
       setIsLoading(false);
     }
     loadEntries();
-  }, [selectedMonth, selectedYear]);
+  }, [selectedMonth, selectedYear, activeMachines]);
 
   const millTotalYards = monthEntries.reduce((sum, e) => sum + e.totalYards, 0);
-  const millTotalTana = monthEntries.reduce((sum, e) => sum + (e.tanaCount || 0), 0);
+  const millTotalTana = Object.values(machineTanas).reduce((sum, count) => sum + count, 0);
   const millTotalWage = useMemo(() => {
     return activeWorkers.reduce((total, w) => {
       return total + calculateMonthlyWage(monthEntries.filter((e) => e.workerId === w.id), wageRates, selectedMonth, selectedYear);
@@ -59,10 +72,10 @@ export default function MonthlyReportPage() {
     return activeMachines.map((machine) => {
       const entries = monthEntries.filter((e) => e.machineId === machine.id);
       const totalYards = entries.reduce((sum, e) => sum + e.totalYards, 0);
-      const totalTana = entries.reduce((sum, e) => sum + (e.tanaCount || 0), 0);
+      const totalTana = machineTanas[machine.id] || 0;
       return { machine, totalYards, totalTana };
     }).sort((a, b) => b.totalYards - a.totalYards);
-  }, [activeMachines, monthEntries]);
+  }, [activeMachines, monthEntries, machineTanas]);
 
   const workerData = useMemo(() => {
     return activeWorkers.map((worker) => {

@@ -10,38 +10,36 @@ function getTodayStr() {
   return new Date().toISOString().split("T")[0];
 }
 
-export default function DailyReportPage() {
+export default function WeeklyReportPage() {
   const { t } = useLang();
   const [selectedDate, setSelectedDate] = useState(getTodayStr());
   const [expandedMachines, setExpandedMachines] = useState<Set<string>>(new Set());
-  const [dayEntries, setDayEntries] = useState<any[]>([]);
+  const [weekEntries, setWeekEntries] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function loadEntries() {
       setIsLoading(true);
       const data = await getEntriesForDate(selectedDate);
-      setDayEntries(data);
+      setWeekEntries(data);
       setIsLoading(false);
     }
     loadEntries();
   }, [selectedDate]);
 
-  const millTotalYards = dayEntries.reduce((sum, e) => sum + e.totalYards, 0);
-  const millTotalTana = dayEntries.reduce((sum, e) => sum + (e.tanaCount || 0), 0);
+  const millTotalYards = weekEntries.reduce((sum, e) => sum + e.totalYards, 0);
 
   const machineGroups = useMemo(() => {
-    const groups: Record<string, { machine: any; entries: typeof dayEntries; total: number; tana: number }> = {};
-    dayEntries.forEach((entry) => {
+    const groups: Record<string, { machine: any; entries: typeof weekEntries; total: number }> = {};
+    weekEntries.forEach((entry) => {
       if (!groups[entry.machineId]) {
-        groups[entry.machineId] = { machine: entry.machine, entries: [], total: 0, tana: 0 };
+        groups[entry.machineId] = { machine: entry.machine, entries: [], total: 0 };
       }
       groups[entry.machineId].entries.push(entry);
       groups[entry.machineId].total += entry.totalYards;
-      groups[entry.machineId].tana += (entry.tanaCount || 0);
     });
     return Object.values(groups).sort((a, b) => a.machine.machineNumber - b.machine.machineNumber);
-  }, [dayEntries]);
+  }, [weekEntries]);
 
   const toggleMachine = (id: string) => {
     setExpandedMachines((prev) => {
@@ -66,7 +64,7 @@ export default function DailyReportPage() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <label className="text-sm text-text-secondary">{t("daily.date")}:</label>
+          <label className="text-sm text-text-secondary">{t("weekly.date")}:</label>
           <input
             type="date"
             value={selectedDate}
@@ -79,7 +77,7 @@ export default function DailyReportPage() {
           className="no-print flex items-center gap-2 px-4 py-2 bg-bg-card border border-border-primary text-text-primary text-sm rounded-xl hover:bg-bg-card-hover transition-all"
         >
           <Printer size={16} />
-          {t("daily.print")}
+          {t("weekly.print")}
         </button>
       </div>
 
@@ -91,7 +89,7 @@ export default function DailyReportPage() {
           </div>
           <div className="flex-1">
             <p className="text-xs text-text-muted uppercase tracking-wider">
-              {t("daily.mill_total")} — {selectedDate}
+              {t("weekly.mill_total")} — {selectedDate}
             </p>
             <p className="text-3xl font-bold gradient-text">
               {millTotalYards.toLocaleString()} {t("common.yards")}
@@ -99,10 +97,7 @@ export default function DailyReportPage() {
           </div>
           <div className="text-right hidden sm:block">
             <p className="text-sm text-text-muted">
-              {machineGroups.length} {t("daily.machines_entries").split("·")[0]}· {dayEntries.length} {t("daily.machines_entries").split("·")[1]}
-            </p>
-            <p className="text-sm text-text-muted">
-              {t("daily.tana")}: <span className="font-semibold text-text-primary">{millTotalTana}</span>
+              {machineGroups.length} {t("weekly.machines_entries").split("·")[0]}· {weekEntries.length} {t("weekly.machines_entries").split("·")[1]}
             </p>
           </div>
         </div>
@@ -112,13 +107,13 @@ export default function DailyReportPage() {
       <div className="glass-card overflow-hidden">
         <div className="px-5 py-3 border-b border-border-primary bg-bg-secondary/50">
           <h3 className="text-sm font-semibold text-text-primary">
-            {t("daily.breakdown")}
+            {t("weekly.breakdown")}
           </h3>
         </div>
 
         {machineGroups.length === 0 ? (
           <div className="py-12 text-center text-sm text-text-muted">
-            {t("daily.no_entries")}
+            {t("weekly.no_entries")}
           </div>
         ) : (
           <div className="divide-y divide-border-primary/50">
@@ -149,12 +144,9 @@ export default function DailyReportPage() {
                       </span>
                     </div>
                     <span className="text-xs text-text-muted">
-                      {group.entries.length} {t("daily.workers_count")}
+                      {group.entries.length} {t("weekly.workers_count")}
                     </span>
-                    <span className="text-xs text-text-muted mx-2">
-                      {t("daily.tana")}: {group.tana}
-                    </span>
-                    <span className="font-mono font-semibold text-accent-cyan text-sm ml-2">
+                    <span className="font-mono font-semibold text-accent-cyan text-sm ml-4">
                       {group.total} {t("common.yards")}
                     </span>
                   </button>
@@ -165,16 +157,13 @@ export default function DailyReportPage() {
                         <thead>
                           <tr className="border-b border-border-primary/30">
                             <th className="text-left py-2 px-8 text-xs font-medium text-text-muted">
-                              {t("daily.worker")}
+                              {t("weekly.worker")}
                             </th>
                             <th className="text-left py-2 px-4 text-xs font-medium text-text-muted">
-                              {t("daily.segments")}
-                            </th>
-                            <th className="text-right py-2 px-4 text-xs font-medium text-text-muted">
-                              {t("daily.tana")}
+                              {t("weekly.days")}
                             </th>
                             <th className="text-right py-2 px-5 text-xs font-medium text-text-muted">
-                              {t("daily.total")}
+                              {t("weekly.total")}
                             </th>
                           </tr>
                         </thead>
@@ -186,10 +175,7 @@ export default function DailyReportPage() {
                                 <span className="text-xs text-text-muted">({entry.worker?.workerId})</span>
                               </td>
                               <td className="py-2 px-4 text-text-muted font-mono text-xs">
-                                {entry.segments.join(" + ")}
-                              </td>
-                              <td className="py-2 px-4 text-right text-text-muted">
-                                {entry.tanaCount || 0}
+                                [{entry.segments.map((s: number) => s || 0).join(", ")}]
                               </td>
                               <td className="py-2 px-5 text-right font-mono font-semibold text-accent-cyan">
                                 {entry.totalYards}
@@ -209,7 +195,7 @@ export default function DailyReportPage() {
         {machineGroups.length > 0 && (
           <div className="flex items-center justify-between px-5 py-3 bg-bg-secondary/50 border-t border-border-primary">
             <span className="text-sm font-medium text-text-secondary">
-              {t("daily.grand_total")}
+              {t("weekly.grand_total")}
             </span>
             <span className="text-lg font-bold font-mono gradient-text">
               {millTotalYards.toLocaleString()} {t("common.yards")}

@@ -167,7 +167,7 @@ export default function DashboardPage() {
         </Link>
 
         <Link
-          href="/reports/daily"
+          href="/reports/weekly"
           className="group flex flex-col items-center gap-3 p-8 rounded-2xl bg-white border-2 border-accent-green/20 hover:border-accent-green/50 hover:shadow-md transition-all duration-200"
         >
           <div className="w-14 h-14 rounded-2xl bg-accent-green/10 text-accent-green flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -175,10 +175,10 @@ export default function DashboardPage() {
           </div>
           <div className="text-center">
             <p className="text-base font-semibold text-text-primary">
-              {t("dash.daily_report")}
+              {t("dash.weekly_report")}
             </p>
             <p className="text-xs text-text-muted mt-0.5">
-              {t("dash.daily_report_desc")}
+              {t("dash.weekly_report_desc")}
             </p>
           </div>
         </Link>

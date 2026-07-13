@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useMemo, useEffect, useTransition } from "react";
-import { Plus, Trash2, Save, ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
+import { Plus, Trash2, Save, ArrowRight, CheckCircle2, Loader2, Calendar, ClipboardEdit } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 import { getApplicableRate, formatBDT } from "@/lib/wage-calc";
 import { getActiveMachines } from "@/app/actions/machines";
 import { getActiveWorkers } from "@/app/actions/workers";
 import { getWageRates } from "@/app/actions/wageRates";
-import { getEntriesForDate, createProductionEntry } from "@/app/actions/production";
+import { getEntriesForDate, createProductionEntries } from "@/app/actions/production";
 import { Skeleton } from "@/components/Skeleton";
 import { useLang } from "@/lib/i18n";
 
@@ -15,16 +15,21 @@ function getTodayStr() {
   return new Date().toISOString().split("T")[0];
 }
 
+interface MachineEntryState {
+  id: string;
+  machineId: string;
+  segments: number[]; // 7 elements
+}
+
 export default function ProductionEntryPage() {
   const { t } = useLang();
   const [selectedDate, setSelectedDate] = useState(getTodayStr());
-  const [selectedMachine, setSelectedMachine] = useState("");
   const [selectedWorker, setSelectedWorker] = useState("");
-  const [segments, setSegments] = useState<number[]>([0]);
-  const [tanaCount, setTanaCount] = useState(0);
-  const [savedEntries, setSavedEntries] = useState<
-    { machine: string; worker: string; segments: number[]; total: number; tana: number }[]
-  >([]);
+  const [machineEntries, setMachineEntries] = useState<MachineEntryState[]>([
+    { id: crypto.randomUUID(), machineId: "", segments: [0, 0, 0, 0, 0, 0, 0] }
+  ]);
+
+  const [savedEntries, setSavedEntries] = useState<{ worker: string; count: number; totalYards: number }[]>([]);
 
   const [activeMachines, setActiveMachines] = useState<any[]>([]);
   const [activeWorkers, setActiveWorkers] = useState<any[]>([]);
@@ -56,7 +61,9 @@ export default function ProductionEntryPage() {
     loadEntries();
   }, [selectedDate, savedEntries]);
 
-  const totalYards = segments.reduce((sum, s) => sum + (s || 0), 0);
+  const totalYards = machineEntries.reduce((sum, entry) => {
+    return sum + entry.segments.reduce((acc, val) => acc + (val || 0), 0);
+  }, 0);
 
   const applicableRate = useMemo(
     () => getApplicableRate(wageRates, selectedDate)?.ratePerYard || 0,
@@ -64,51 +71,65 @@ export default function ProductionEntryPage() {
   );
   const liveWage = totalYards * applicableRate;
 
-  const addSegment = () => setSegments([...segments, 0]);
+  const addMachine = () => {
+    setMachineEntries([...machineEntries, { id: crypto.randomUUID(), machineId: "", segments: [0, 0, 0, 0, 0, 0, 0] }]);
+  };
 
-  const removeSegment = (idx: number) => {
-    if (segments.length > 1) {
-      setSegments(segments.filter((_, i) => i !== idx));
+  const removeMachine = (id: string) => {
+    if (machineEntries.length > 1) {
+      setMachineEntries(machineEntries.filter(m => m.id !== id));
     }
   };
 
-  const updateSegment = (idx: number, value: string) => {
+  const updateMachineSelection = (id: string, machineId: string) => {
+    setMachineEntries(machineEntries.map(m => m.id === id ? { ...m, machineId } : m));
+  };
+
+  const updateSegment = (machineId: string, dayIdx: number, value: string) => {
     const num = parseInt(value) || 0;
-    const updated = [...segments];
-    updated[idx] = num;
-    setSegments(updated);
+    setMachineEntries(machineEntries.map(m => {
+      if (m.id === machineId) {
+        const newSegments = [...m.segments];
+        newSegments[dayIdx] = num;
+        return { ...m, segments: newSegments };
+      }
+      return m;
+    }));
   };
 
   const handleSave = () => {
-    if (!selectedMachine || !selectedWorker || totalYards === 0) return;
+    if (!selectedWorker || totalYards === 0) return;
+    
+    // Ensure all entries have a machine selected
+    if (machineEntries.some(m => !m.machineId)) {
+      alert("Please select a machine for all entries.");
+      return;
+    }
 
     startTransition(async () => {
-      await createProductionEntry({
-        date: selectedDate,
-        machineId: selectedMachine,
-        workerId: selectedWorker,
-        segments: segments.filter((s) => s > 0),
-        totalYards: totalYards,
-        tanaCount: tanaCount,
-      });
+      const entriesToSave = machineEntries.map(m => {
+        const tYards = m.segments.reduce((acc, val) => acc + (val || 0), 0);
+        return {
+          date: selectedDate,
+          workerId: selectedWorker,
+          machineId: m.machineId,
+          segments: m.segments,
+          totalYards: tYards,
+        };
+      }).filter(e => e.totalYards > 0);
 
-      const machineName = activeMachines.find((m) => m.id === selectedMachine)?.machineNumber || "";
-      const workerName = activeWorkers.find((w) => w.id === selectedWorker)?.name || "";
-
-      setSavedEntries([
-        ...savedEntries,
-        {
-          machine: `M${machineName}`,
-          worker: workerName,
-          segments: segments.filter((s) => s > 0),
-          total: totalYards,
-          tana: tanaCount,
-        },
-      ]);
+      if (entriesToSave.length > 0) {
+        await createProductionEntries(entriesToSave);
+        
+        const workerName = activeWorkers.find((w) => w.id === selectedWorker)?.name || "";
+        setSavedEntries([
+          ...savedEntries,
+          { worker: workerName, count: entriesToSave.length, totalYards: totalYards }
+        ]);
+      }
 
       setSelectedWorker("");
-      setSegments([0]);
-      setTanaCount(0);
+      setMachineEntries([{ id: crypto.randomUUID(), machineId: "", segments: [0, 0, 0, 0, 0, 0, 0] }]);
     });
   };
 
@@ -126,13 +147,32 @@ export default function ProductionEntryPage() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Entry Form */}
         <div className="lg:col-span-3 glass-card p-6">
-          <h3 className="text-lg font-semibold text-text-primary mb-5">
+          <h3 className="text-lg font-semibold text-text-primary mb-5 flex items-center gap-2">
+            <ClipboardEdit className="text-accent-cyan" size={20} />
             {t("entry.title")}
           </h3>
 
-          <div className="space-y-5">
-            {/* Date & Machine Row */}
+          <div className="space-y-6">
+            {/* Worker & Date Row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                  {t("entry.worker")}
+                </label>
+                <select
+                  value={selectedWorker}
+                  onChange={(e) => setSelectedWorker(e.target.value)}
+                  className="w-full px-4 py-3 bg-bg-input border border-border-primary rounded-xl text-sm text-text-primary focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/30 transition-all outline-none"
+                >
+                  <option value="">{t("entry.select_worker")}</option>
+                  {activeWorkers.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name} ({w.workerId})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="block text-xs font-medium text-text-secondary mb-1.5">
                   {t("entry.date")}
@@ -144,274 +184,170 @@ export default function ProductionEntryPage() {
                   className="w-full px-4 py-3 bg-bg-input border border-border-primary rounded-xl text-sm text-text-primary focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/30 transition-all outline-none"
                 />
               </div>
-
-              <div>
-                <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                  {t("entry.machine")}
-                </label>
-                <select
-                  value={selectedMachine}
-                  onChange={(e) => setSelectedMachine(e.target.value)}
-                  className="w-full px-4 py-3 bg-bg-input border border-border-primary rounded-xl text-sm text-text-primary focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/30 transition-all outline-none"
-                >
-                  <option value="">{t("entry.select_machine")}</option>
-                  {activeMachines.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      Machine {m.machineNumber} — {m.typeModel}
-                    </option>
-                  ))}
-                </select>
-              </div>
             </div>
 
-            {/* Worker */}
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                {t("entry.worker")}
-              </label>
-              <select
-                value={selectedWorker}
-                onChange={(e) => setSelectedWorker(e.target.value)}
-                className="w-full px-4 py-3 bg-bg-input border border-border-primary rounded-xl text-sm text-text-primary focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/30 transition-all outline-none"
-              >
-                <option value="">{t("entry.select_worker")}</option>
-                {activeWorkers.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name} ({w.workerId})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Segments */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-text-secondary">
-                  {t("entry.segments")}
+            {/* Machine Entries */}
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center justify-between border-b border-border-primary pb-2">
+                <label className="text-sm font-semibold text-text-primary">
+                  {t("entry.machine")} ও উৎপাদন
                 </label>
                 <button
-                  onClick={addSegment}
-                  className="flex items-center gap-1 text-xs text-accent-cyan hover:text-accent-cyan/80 transition-colors"
+                  onClick={addMachine}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-cyan/10 text-accent-cyan hover:bg-accent-cyan/20 text-xs font-medium transition-colors"
                 >
                   <Plus size={14} />
-                  {t("entry.add_segment")}
+                  {t("entry.add_machine")}
                 </button>
               </div>
-              <div className="space-y-2">
-                {segments.map((seg, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <span className="text-xs text-text-muted w-6 text-right shrink-0">
-                      {idx + 1}.
+
+              {machineEntries.map((machineEntry, mIdx) => (
+                <div key={machineEntry.id} className="p-4 rounded-xl border border-border-primary bg-bg-secondary/30 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-accent-blue/10 text-accent-blue flex items-center justify-center text-xs font-bold">
+                      {mIdx + 1}
                     </span>
-                    <input
-                      type="number"
-                      min="0"
-                      value={seg || ""}
-                      onChange={(e) => updateSegment(idx, e.target.value)}
-                      placeholder={t("entry.yards")}
-                      className="flex-1 px-4 py-3 bg-bg-input border border-border-primary rounded-xl text-base text-text-primary font-mono focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/30 transition-all outline-none"
-                      style={{ fontSize: "18px" }}
-                    />
-                    {segments.length > 1 && (
+                    <select
+                      value={machineEntry.machineId}
+                      onChange={(e) => updateMachineSelection(machineEntry.id, e.target.value)}
+                      className="flex-1 px-4 py-2 bg-bg-input border border-border-primary rounded-xl text-sm text-text-primary focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/30 transition-all outline-none"
+                    >
+                      <option value="">{t("entry.select_machine")}</option>
+                      {activeMachines.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          Machine {m.machineNumber} — {m.typeModel}
+                        </option>
+                      ))}
+                    </select>
+                    {machineEntries.length > 1 && (
                       <button
-                        onClick={() => removeSegment(idx)}
-                        className="p-2 rounded-lg hover:bg-accent-red/10 text-text-muted hover:text-accent-red transition-colors"
+                        onClick={() => removeMachine(machineEntry.id)}
+                        className="p-2 text-text-muted hover:text-accent-pink hover:bg-accent-pink/10 rounded-lg transition-colors"
+                        title={t("entry.remove_machine")}
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={18} />
                       </button>
                     )}
                   </div>
-                ))}
-              </div>
-            </div>
 
-            {/* তানা Section */}
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                {t("entry.tana")}
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={tanaCount || ""}
-                onChange={(e) => setTanaCount(parseInt(e.target.value) || 0)}
-                placeholder={t("entry.tana_hint")}
-                className="w-full px-4 py-3 bg-bg-input border border-border-primary rounded-xl text-base text-text-primary font-mono focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/30 transition-all outline-none"
-                style={{ fontSize: "18px" }}
-              />
-              <p className="text-xs text-text-muted mt-1">{t("entry.tana_hint")}</p>
-            </div>
-
-            {/* Total */}
-            <div className="flex items-center justify-between p-4 rounded-xl bg-bg-secondary border border-border-primary">
-              <span className="text-sm font-medium text-text-secondary">
-                {t("entry.total_yards")}
-              </span>
-              <span className="text-2xl font-bold font-mono gradient-text">
-                {totalYards}
-              </span>
-            </div>
-
-            {/* Live Wage Preview */}
-            <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-accent-amber/5 border border-accent-amber/20">
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-accent-amber">
-                  {t("entry.live_wage")}
-                </span>
-                <span className="text-xs text-text-muted">
-                  {wageRates.length === 0
-                    ? t("entry.no_rate_warning")
-                    : `${t("entry.rate_applied")}: ${applicableRate} ${t("common.bdt_per_yard")}`}
-                </span>
-              </div>
-              <span className="text-xl font-bold font-mono text-accent-amber">
-                {formatBDT(liveWage)}
-              </span>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-3 pt-2">
-              <button
-                onClick={handleSave}
-                disabled={isPending || !selectedMachine || !selectedWorker || totalYards === 0}
-                className="flex-1 flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-accent-cyan to-accent-blue text-white font-medium rounded-xl text-sm
-                  hover:shadow-lg hover:shadow-accent-cyan/20 active:scale-[0.98] transition-all duration-200
-                  disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                {t("entry.save_next")}
-                {!isPending && <ArrowRight size={14} />}
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={isPending || !selectedMachine || !selectedWorker || totalYards === 0}
-                className="px-6 py-3 bg-bg-card border border-border-primary text-text-primary font-medium rounded-xl text-sm
-                  hover:bg-bg-card-hover transition-all
-                  disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {t("entry.save_only")}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Session Entries */}
-        <div className="lg:col-span-2 glass-card p-5">
-          <h3 className="text-sm font-semibold text-text-primary mb-4">
-            {t("entry.session_entries")}
-          </h3>
-
-          {savedEntries.length === 0 ? (
-            <div className="py-12 text-center">
-              <div className="w-12 h-12 rounded-xl bg-bg-card border border-border-primary mx-auto mb-3 flex items-center justify-center">
-                <CheckCircle2 size={24} className="text-text-muted" />
-              </div>
-              <p className="text-sm text-text-muted">{t("entry.no_entries")}</p>
-              <p className="text-xs text-text-muted mt-1">
-                {t("entry.fill_form")}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {savedEntries.map((entry, idx) => (
-                <div
-                  key={idx}
-                  className="p-3 rounded-xl bg-bg-secondary border border-border-primary animate-slide-in"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-text-primary">
-                      {entry.worker}
-                    </span>
-                    <StatusBadge status="LOGGED" />
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-text-muted">
-                    <span>{entry.machine} · {t("entry.tana")}: {entry.tana}</span>
-                    <span>
-                      {entry.segments.join(" + ")} ={" "}
-                      <span className="font-mono font-semibold text-accent-cyan">
-                        {entry.total} {t("common.yards")}
-                      </span>
-                    </span>
+                  <div>
+                    <label className="block text-xs font-medium text-text-secondary mb-2">
+                      {t("entry.segments")}
+                    </label>
+                    <div className="grid grid-cols-7 gap-2">
+                      {machineEntry.segments.map((val, dIdx) => (
+                        <div key={dIdx} className="text-center space-y-1">
+                          <span className="text-[10px] text-text-muted font-medium block">D{dIdx + 1}</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={val || ""}
+                            onChange={(e) => updateSegment(machineEntry.id, dIdx, e.target.value)}
+                            className="w-full px-2 py-2 text-center bg-white border border-border-primary rounded-lg text-sm text-text-primary focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/30 outline-none placeholder:text-gray-300"
+                            placeholder="0"
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ))}
-
-              <div className="pt-3 border-t border-border-primary flex items-center justify-between">
-                <span className="text-xs text-text-muted">
-                  {savedEntries.length} {t("entry.entries")}
-                </span>
-                <span className="text-sm font-semibold text-text-primary">
-                  {t("entry.total")}:{" "}
-                  <span className="font-mono text-accent-cyan">
-                    {savedEntries.reduce((s, e) => s + e.total, 0)} {t("common.yards")}
-                  </span>
-                </span>
-              </div>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Existing entries for selected date */}
-      <div className="glass-card p-5">
-        <h3 className="text-sm font-semibold text-text-primary mb-4">
-          {t("entry.existing_entries")} — {selectedDate}
-        </h3>
-        {existingEntries.length === 0 ? (
-          <p className="text-sm text-text-muted py-4 text-center">
-            {t("entry.no_existing")}
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border-primary">
-                  <th className="text-left py-2 px-3 text-xs font-medium text-text-muted uppercase tracking-wider">
-                    {t("entry.machine")}
-                  </th>
-                  <th className="text-left py-2 px-3 text-xs font-medium text-text-muted uppercase tracking-wider">
-                    {t("entry.worker")}
-                  </th>
-                  <th className="text-left py-2 px-3 text-xs font-medium text-text-muted uppercase tracking-wider">
-                    {t("entry.segments")}
-                  </th>
-                  <th className="text-right py-2 px-3 text-xs font-medium text-text-muted uppercase tracking-wider">
-                    {t("entry.tana")}
-                  </th>
-                  <th className="text-right py-2 px-3 text-xs font-medium text-text-muted uppercase tracking-wider">
-                    {t("entry.total")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {existingEntries.slice(0, 15).map((entry) => {
-                  return (
-                    <tr
-                      key={entry.id}
-                      className="border-b border-border-primary/50 hover:bg-bg-card-hover/50"
-                    >
-                      <td className="py-2 px-3 text-text-primary font-medium">
-                        M{entry.machine?.machineNumber}
-                      </td>
-                      <td className="py-2 px-3 text-text-secondary">
-                        {entry.worker?.name}
-                      </td>
-                      <td className="py-2 px-3 text-text-muted font-mono text-xs">
-                        {entry.segments.join(" + ")}
-                      </td>
-                      <td className="py-2 px-3 text-right text-text-muted">
-                        {entry.tanaCount || 0}
-                      </td>
-                      <td className="py-2 px-3 text-right font-mono font-semibold text-accent-cyan">
-                        {entry.totalYards}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            {/* Total Preview */}
+            <div className="p-4 rounded-xl bg-gradient-to-r from-accent-cyan/5 to-accent-blue/5 border border-accent-cyan/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <p className="text-xs text-text-muted mb-0.5">{t("entry.total_yards")}</p>
+                <p className="text-2xl font-bold text-text-primary">
+                  {totalYards.toLocaleString()} <span className="text-sm font-normal text-text-muted">{t("entry.yards")}</span>
+                </p>
+              </div>
+
+              {!applicableRate ? (
+                <div className="text-accent-pink text-xs bg-accent-pink/10 px-3 py-2 rounded-lg flex-1">
+                  {t("entry.no_rate_warning")}
+                </div>
+              ) : (
+                <div className="sm:text-right">
+                  <p className="text-xs text-text-muted mb-0.5">{t("entry.live_wage")} ({applicableRate} {t("common.bdt_per_yard")})</p>
+                  <p className="text-2xl font-bold text-accent-amber">
+                    {formatBDT(liveWage)}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={handleSave}
+              disabled={isPending || !selectedWorker || totalYards === 0 || machineEntries.some(m => !m.machineId)}
+              className="w-full flex items-center justify-center gap-2 py-3.5 bg-accent-cyan hover:bg-accent-cyan/90 text-white rounded-xl font-medium transition-all shadow-md shadow-accent-cyan/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isPending ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+              {t("common.save")}
+            </button>
           </div>
-        )}
+        </div>
+
+        {/* Sidebar info */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="glass-card p-5">
+            <h4 className="text-sm font-semibold text-text-primary mb-3">
+              {t("entry.session_entries")}
+            </h4>
+            <div className="space-y-3">
+              {savedEntries.length === 0 ? (
+                <p className="text-sm text-text-muted text-center py-6">
+                  {t("entry.no_entries")}<br />{t("entry.fill_form")}
+                </p>
+              ) : (
+                savedEntries.map((e, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-bg-secondary/50 border border-border-primary/50 animate-fade-in">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle2 size={18} className="text-accent-green" />
+                      <div>
+                        <p className="text-sm font-medium text-text-primary">{e.worker}</p>
+                        <p className="text-xs text-text-muted">{e.count} machines</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-text-primary">{e.totalYards}</p>
+                      <p className="text-[10px] text-text-muted">{t("entry.yards")}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="glass-card p-5">
+            <h4 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
+              <Calendar size={16} />
+              {t("entry.existing_entries")}
+            </h4>
+            <div className="space-y-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+              {existingEntries.length === 0 ? (
+                <p className="text-sm text-text-muted text-center py-4">
+                  {t("entry.no_existing")}
+                </p>
+              ) : (
+                existingEntries.map((e) => (
+                  <div key={e.id} className="p-3 rounded-lg bg-white border border-border-primary flex justify-between items-center group hover:border-accent-cyan/30 transition-colors">
+                    <div>
+                      <p className="text-sm font-medium text-text-primary">{e.worker?.name}</p>
+                      <p className="text-xs text-text-muted">Machine {e.machine?.machineNumber}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-text-primary">{e.totalYards.toLocaleString()}</p>
+                      <p className="text-[10px] text-text-muted text-right">
+                        {e.segments.join(" + ")}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

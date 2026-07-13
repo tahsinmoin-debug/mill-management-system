@@ -56,7 +56,7 @@ export interface ProductionEntry {
   date: string; // ISO date string (YYYY-MM-DD)
   machineId: string;
   workerId: string;
-  segments: ProductionSegment[];
+  segments: number[]; // 7 integers for 7 days
   totalYards: number; // Sum of all segment yards
   createdAt: string;
 }

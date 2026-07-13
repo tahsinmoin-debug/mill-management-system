@@ -23,6 +23,8 @@ export default function YearlyReportPage() {
   const [yearEntries, setYearEntries] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const [yearlyTanaData, setYearlyTanaData] = useState<{ monthlyTana: number[]; yearlyTotal: number }>({ monthlyTana: Array(12).fill(0), yearlyTotal: 0 });
+
   useEffect(() => {
     async function loadInitial() {
       const [w, r] = await Promise.all([getActiveWorkers(), getWageRates()]);
@@ -35,15 +37,22 @@ export default function YearlyReportPage() {
   useEffect(() => {
     async function loadEntries() {
       setIsLoading(true);
-      const entries = await getEntriesForYear(String(selectedYear));
+      const { getYearlyTanaBreakdown } = await import("@/app/actions/production");
+      
+      const [entries, tanaData] = await Promise.all([
+        getEntriesForYear(String(selectedYear)),
+        getYearlyTanaBreakdown(selectedYear)
+      ]);
+      
       setYearEntries(entries);
+      setYearlyTanaData(tanaData);
       setIsLoading(false);
     }
     loadEntries();
   }, [selectedYear]);
 
   const yearTotalYards = yearEntries.reduce((sum, e) => sum + e.totalYards, 0);
-  const yearTotalTana = yearEntries.reduce((sum, e) => sum + (e.tanaCount || 0), 0);
+  const yearTotalTana = yearlyTanaData.yearlyTotal;
   const workingDays = new Set(yearEntries.map((e) => e.date)).size;
 
   const yearTotalWage = useMemo(() => {
@@ -67,7 +76,7 @@ export default function YearlyReportPage() {
       const monthStr = `${selectedYear}-${String(month).padStart(2, "0")}`;
       const entries = yearEntries.filter((e) => e.date.startsWith(monthStr));
       const yards = entries.reduce((sum, e) => sum + e.totalYards, 0);
-      const tana = entries.reduce((sum, e) => sum + (e.tanaCount || 0), 0);
+      const tana = yearlyTanaData.monthlyTana[i] || 0;
       const days = new Set(entries.map((e) => e.date)).size;
       let wage = 0;
       activeWorkers.forEach((w) => {
@@ -75,7 +84,7 @@ export default function YearlyReportPage() {
       });
       return { month, name: monthName(month), yards, tana, days, wage };
     });
-  }, [yearEntries, activeWorkers, wageRates, selectedYear, monthName]);
+  }, [yearEntries, activeWorkers, wageRates, selectedYear, monthName, yearlyTanaData]);
 
   if (isLoading && activeWorkers.length === 0) {
     return (

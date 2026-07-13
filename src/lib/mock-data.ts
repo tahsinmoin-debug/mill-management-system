@@ -97,14 +97,16 @@ function generateEntries(): ProductionEntry[] {
 
         // Generate 2-4 segments (thread changes)
         const segmentCount = 2 + (entryId % 3);
-        const segments = [];
-        for (let s = 0; s < segmentCount; s++) {
-          // Realistic yard values: 15-35 per segment
-          const yards = 15 + ((entryId * 7 + s * 13 + day * 3) % 21);
-          segments.push({ yards });
-        }
-
-        const totalYards = segments.reduce((sum, seg) => sum + seg.yards, 0);
+        const segments = [
+          Math.floor(Math.random() * 50) + 20,
+          Math.floor(Math.random() * 50) + 20,
+          Math.floor(Math.random() * 50) + 20,
+          Math.floor(Math.random() * 50) + 20,
+          Math.floor(Math.random() * 50) + 20,
+          Math.floor(Math.random() * 50) + 20,
+          Math.floor(Math.random() * 50) + 20
+        ];
+        const totalYards = segments.reduce((sum, s) => sum + s, 0);
 
         entries.push({
           id: `pe${entryId}`,
