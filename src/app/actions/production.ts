@@ -1,9 +1,11 @@
 "use server";
 
 import prisma from "@/lib/prisma";
+import { requireUser } from "@/lib/guards";
 import { revalidatePath } from "next/cache";
 
 export async function getEntriesForDate(date: string) {
+  await requireUser();
   return prisma.productionEntry.findMany({
     where: { date },
     include: { machine: true, worker: true },
@@ -18,6 +20,7 @@ export async function createProductionEntries(entries: {
   segments: number[];
   totalYards: number;
 }[]) {
+  await requireUser();
   await prisma.productionEntry.createMany({
     data: entries.map(e => ({
       ...e,
@@ -31,6 +34,7 @@ export async function createProductionEntries(entries: {
 }
 
 export async function getMachineLifetimeYards(machineId: string, upToDate?: string) {
+  await requireUser();
   const whereClause: any = { machineId };
   if (upToDate) {
     whereClause.date = { lt: upToDate };
@@ -43,6 +47,7 @@ export async function getMachineLifetimeYards(machineId: string, upToDate?: stri
 }
 
 export async function getMonthlyMachineTana(machineId: string, month: number, year: number) {
+  await requireUser();
   const startOfMonth = `${year}-${String(month).padStart(2, "0")}-01`;
   const nextMonth = month === 12 ? 1 : month + 1;
   const nextMonthYear = month === 12 ? year + 1 : year;
@@ -55,6 +60,7 @@ export async function getMonthlyMachineTana(machineId: string, month: number, ye
 }
 
 export async function getYearlyMachineTana(machineId: string, year: number) {
+  await requireUser();
   const startOfYear = `${year}-01-01`;
   const startOfNextYear = `${year + 1}-01-01`;
 
@@ -65,6 +71,7 @@ export async function getYearlyMachineTana(machineId: string, year: number) {
 }
 
 export async function getYearlyTanaBreakdown(year: number) {
+  await requireUser();
   const machines = await prisma.machine.findMany({ select: { id: true } });
   const monthlyTana = Array(12).fill(0);
   let yearlyTotal = 0;
@@ -92,6 +99,7 @@ export async function getYearlyTanaBreakdown(year: number) {
 }
 
 export async function getEntriesForMonth(monthStr: string) {
+  await requireUser();
   return prisma.productionEntry.findMany({
     where: {
       date: {
@@ -103,6 +111,7 @@ export async function getEntriesForMonth(monthStr: string) {
 }
 
 export async function getEntriesForYear(year: string) {
+  await requireUser();
   return prisma.productionEntry.findMany({
     where: {
       date: {

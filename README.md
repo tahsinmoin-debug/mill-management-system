@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MillTrack: Production & Wage Management for a Clothing Mill
 
-## Getting Started
+A bilingual (Bangla/English) web app built for a real clothing mill client in Bangladesh. It replaced paper registers for recording daily loom production and calculating workers' yard-based wages.
 
-First, run the development server:
+> Freelance project, built and maintained by [Tahsin Moin](https://github.com/tahsinmoin-debug). In use by the client.
+
+<!-- Add 2–3 screenshots here with real worker data blurred, e.g. docs/screenshots/dashboard.png -->
+
+## The problem
+
+The mill paid workers per yard of fabric produced, and tracked everything on paper: who worked which machine, how many yards each day, and what each person was owed at month end. Totals were slow to calculate, rate changes were easy to apply wrongly, and there was no clear view of machine output over time.
+
+## What it does
+
+- **Daily production entry:** record each worker's output across one or more machines, with segment-wise yard input and a live wage preview while typing.
+- **Automatic wage calculation:** one calculation engine (`src/lib/wage-calc.ts`) handles daily, monthly and yearly totals at the current per-yard rate, rounded to whole taka.
+- **Reports:** weekly, monthly and yearly reports, plus printable payslips (print or save as PDF straight from the browser).
+- **Machine and worker management:** add machines and workers, and mark them active, inactive or under repair.
+- **Wage rate history:** the admin sets the per-yard rate, and past rates are kept.
+- **Two roles:** Admin (full access, user and rate settings) and Manager (daily entry and reports).
+- **Bangla and English UI:** the client's staff use it in Bangla.
+
+## Tech stack
+
+| Layer | Choice |
+| --- | --- |
+| App | Next.js (App Router, Server Actions), React, TypeScript |
+| Styling | Tailwind CSS |
+| Database | PostgreSQL via Prisma ORM |
+| Auth | Auth.js (NextAuth) credentials login, bcrypt-hashed passwords, role checks in route protection and inside every server action |
+| Charts | Recharts |
+
+The stack was chosen for a two-user internal tool: no paid APIs and no infrastructure the client has to maintain.
+
+## Running locally
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Create `.env.local` (git-ignored):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DBNAME
+AUTH_SECRET=<generate with: npx auth secret>
+ADMIN_USERNAME=<admin login name>
+ADMIN_NAME=<display name>
+ADMIN_PASSWORD=<at least 12 characters>
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Then set up the database, create the admin account and start the app:
 
-## Learn More
+```bash
+npx prisma db push
+npx tsx --env-file=.env.local seed.ts
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+Running the seed again with a new `ADMIN_PASSWORD` resets that admin's password.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+  app/(dashboard)/   pages: dashboard, entry, machines, workers, reports, settings
+  app/actions/       server actions (each checks the session and role)
+  lib/wage-calc.ts   wage and yard calculations
+  lib/guards.ts      requireUser / requireAdmin helpers
+  lib/i18n.tsx       Bangla/English translations
+prisma/schema.prisma data model
+```
